@@ -16,7 +16,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 
 
-# Params
+# HamsterFarm
 YANDEX_USERNAME = "username"
 TAP_COUNT = 4000
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class TapHelper:
     _instance = None
 
-    driver_path = '../Hamsters/app/core/chromedriver-win64/chromedriver.exe'
+    driver_path = '../app/core/chromedriver-win64/chromedriver.exe'
     base_url = 'https://ya.ru/search/?text=%D0%BA%D0%B0%D0%B1%D0%B0%D0%BD&lr=50'
 
     def __new__(cls, *args, **kwargs):

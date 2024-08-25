@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from PIL import Image, ImageDraw, ImageOps
 
-from Hamsters.bd import redis_manager
+from bd import redis_manager
 
 # Appearance settings
 ctk.set_appearance_mode("light")

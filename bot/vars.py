@@ -1,7 +1,7 @@
 from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
 
-from Hamsters.config import TELEGRAM_TOKEN
+from config import TELEGRAM_TOKEN
 
 
 bot = Bot(

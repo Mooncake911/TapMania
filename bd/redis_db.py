@@ -4,8 +4,7 @@ from threading import Lock
 from typing import Union, Optional
 from redis import Redis
 
-from Hamsters.config import REDIS_HOST, REDIS_PASSWORD, REDIS_PORT
-
+from config import REDIS_HOST, REDIS_PASSWORD, REDIS_PORT
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

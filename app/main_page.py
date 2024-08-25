@@ -1,6 +1,8 @@
 import customtkinter as ctk
 from typing import Callable
 
+from core import HamsterFarm
+
 # Appearance settings
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("themes/carrot.json")
@@ -71,12 +73,22 @@ class MyInputManagerFrame(ctk.CTkFrame):
         delete_button = ctk.CTkButton(frame, text="Delete", command=lambda: self.remove_field_event(frame))
         delete_button.grid(row=0, column=2, padx=(0, 0), pady=(0, 0), sticky="e")
 
-        self.input_fields.append(frame)
+        self.input_fields.append((name_field, value_field, frame))
 
     def remove_field_event(self, frame):
-        if frame in self.input_fields:
-            self.input_fields.remove(frame)
-            frame.destroy()
+        for name_field, value_field, f in self.input_fields:
+            if f == frame:
+                self.input_fields.remove((name_field, value_field, frame))
+                frame.destroy()
+                break
+
+    def get(self):
+        values = []
+        for name_field, value_field, _ in self.input_fields:
+            name = name_field.get()
+            value = value_field.get()
+            values.append((name, value))
+        return values
 
 
 class MyCheckboxFrame(ctk.CTkFrame):
@@ -86,17 +98,17 @@ class MyCheckboxFrame(ctk.CTkFrame):
         [self.grid_rowconfigure(i, weight=1) for i in range(self.grid_rows)]
         [self.grid_columnconfigure(j, weight=1) for j in range(self.grid_columns)]
 
-        self.checkboxes = []
+        self.checkboxes = {}
 
         for index, text in enumerate(checkbox_texts):
             row = index // self.grid_columns
             column = index % self.grid_columns
             checkbox = ctk.CTkCheckBox(self, text=text)
             checkbox.grid(row=row, column=column, padx=(10, 10), pady=(5, 5), sticky="w")
-            self.checkboxes.append(checkbox)
+            self.checkboxes[text] = checkbox
 
-    def get_checked(self):
-        return [checkbox.get() for checkbox in self.checkboxes]
+    def get(self):
+        return {text: checkbox.get() for text, checkbox in self.checkboxes.items()}
 
 
 class MainPage(ctk.CTkFrame):
@@ -112,6 +124,9 @@ class MainPage(ctk.CTkFrame):
         self.grid_columnconfigure(1, weight=2)
         self.grid_rowconfigure(0, weight=1)
 
+        self.hamster_farm = HamsterFarm()
+        self.is_farming = False
+
         # Левая панель
         self.left_frame = ctk.CTkFrame(self)
         self.left_frame.grid(row=0, column=0, padx=(10, 10), pady=(10, 10), sticky="nsew")
@@ -125,17 +140,16 @@ class MainPage(ctk.CTkFrame):
                                             values=("android", "android_x", "ios"))
         self.platform_frame.grid(row=1, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
-        self.clicks_count_frame = MyInputFrame(self.left_frame, text="Clicks Count:", placeholder_text="Enter number")
-        self.clicks_count_frame.grid(row=2, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
+        self.timeout_frame = MyInputFrame(self.left_frame, text="Timout:", placeholder_text="Enter number")
+        self.timeout_frame.grid(row=2, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
-        self.threads_count_frame = MyInputFrame(self.left_frame, text="Threads Count:",
-                                                placeholder_text="Enter number")
-        self.threads_count_frame.grid(row=3, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
+        self.num_clicks_frame = MyInputFrame(self.left_frame, text="Clicks Count:", placeholder_text="Enter number")
+        self.num_clicks_frame.grid(row=3, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
-        self.appearance_mode_frame = MyOptionFrame(self.left_frame, text="Appearance Mode:",
-                                                   values=("Light", "Dark", "System"),
-                                                   command=self.appearance_mode_event)
-        self.appearance_mode_frame.grid(row=4, column=0, padx=(10, 10), pady=(10, 5), sticky="sew")
+        self.appearance_frame = MyOptionFrame(self.left_frame, text="Appearance Mode:",
+                                              values=("Light", "Dark", "System"),
+                                              command=self.appearance_mode_event)
+        self.appearance_frame.grid(row=4, column=0, padx=(10, 10), pady=(10, 5), sticky="sew")
 
         # Правая панель
         self.right_frame = ctk.CTkFrame(self)
@@ -143,20 +157,34 @@ class MainPage(ctk.CTkFrame):
         self.right_frame.grid_columnconfigure(0, weight=1)
         self.right_frame.grid_rowconfigure((0, 2), weight=1)
 
-        self.src_frame = MyInputManagerFrame(self.right_frame, button_text="+ Add Telegram Account",
-                                             name_placeholder_text="name", value_placeholder_text="src")
-        self.src_frame.grid(row=0, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
+        self.users_frame = MyInputManagerFrame(self.right_frame, button_text="+ Add Telegram Account",
+                                               name_placeholder_text="name", value_placeholder_text="src")
+        self.users_frame.grid(row=0, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
         self.checkbox_frame = MyCheckboxFrame(self.right_frame, size=(2, 3),
-                                              checkbox_texts=["Show", "Show", "Show", "Show", "Show", "Show"])
+                                              checkbox_texts=["Show", "Show1", "Show2", "Show3", "Show4", "Show5"])
         self.checkbox_frame.grid(row=1, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
-        self.launch_button = ctk.CTkButton(self.right_frame, text="Start Farming", command=self.start_farm_event)
+        self.launch_button = ctk.CTkButton(self.right_frame, text="Start Farming", command=self.toggle_farming_event)
         self.launch_button.grid(row=2, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
     @staticmethod
     def appearance_mode_event(mode: str):
         ctk.set_appearance_mode(mode)
 
-    def start_farm_event(self):
-        pass
+    def update_farm_parameters(self):
+        self.hamster_farm.platform = str(self.platform_frame.get())
+        self.hamster_farm.timeout = int(self.timeout_frame.get())
+        self.hamster_farm.num_clicks = int(self.num_clicks_frame.get())
+        self.hamster_farm.users = list(self.users_frame.get())
+        self.hamster_farm.show = bool(self.checkbox_frame.get()["Show"])
+
+    def toggle_farming_event(self):
+        if self.is_farming:
+            self.hamster_farm.deactivate_farm()
+            self.launch_button.configure(text="Start Farming")
+        else:
+            self.update_farm_parameters()
+            self.hamster_farm.activate_farm()
+            self.launch_button.configure(text="Stop Farming")
+        self.is_farming = not self.is_farming

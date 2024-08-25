@@ -1,6 +1,6 @@
 import customtkinter as ctk
 
-from Hamsters.bd import redis_manager
+from bd import redis_manager
 
 from login_page import LoginPage
 from main_page import MainPage
