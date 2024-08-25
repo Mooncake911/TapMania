@@ -1,8 +1,10 @@
 import re
+import threading
 import time
 import random
 
 from pathlib import Path
+from functools import wraps
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -16,34 +18,45 @@ from selenium.common.exceptions import (NoSuchElementException,
                                         NoSuchWindowException,
                                         WebDriverException)
 
-
-from app.core.base_helper import BaseHelper
-from app.core.logging_config import logger
+from .base_helper import BaseHelper
+from .logging_config import logger
 
 
 class HamsterHelper(BaseHelper):
     @BaseHelper.handle_exceptions
-    def __init__(self, name, src, platform, timeout, num_clicks, show):
+    def __init__(self, name, src, platform, timeout, num_clicks, show, claim_daily_rewards):
         super().__init__(show=show)
+        self.stop_event = threading.Event()
         self.base_url = self.rewrite_html(name, src, platform)
         self.timeout = timeout
         self.num_clicks = num_clicks
+        self.claim_daily_rewards = claim_daily_rewards
 
         self.driver.get(self.base_url)
         self.driver.set_window_rect(width=300, height=800)
         self.switch_to_iframe()
 
     @staticmethod
+    def check_stop_event(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if self.stop_event.is_set():
+                return
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    @staticmethod
     def rewrite_html(name, src, platform) -> str:
         """ Перезаписать src в шаблоне html."""
-        with open(Path("hamster.html").absolute().as_posix(), "r", encoding="utf-8") as file:
+        with open(Path("core/hamster.html").absolute().as_posix(), "r", encoding="utf-8") as file:
             html_content = file.read()
 
         if 'tgWebAppPlatform=web' in src:
             new_src = src.replace('tgWebAppPlatform=web', f'tgWebAppPlatform={platform}')
             html_content = re.sub(r'src="[^"]*"', f'src="{new_src}"', html_content)
 
-            new_html_path = Path(f"accounts/{name}.html")
+            new_html_path = Path(f"core/accounts/{name}.html")
             with open(new_html_path, "w", encoding="utf-8") as file:
                 file.write(html_content)
 
@@ -52,6 +65,46 @@ class HamsterHelper(BaseHelper):
         else:
             raise NoSuchElementException
 
+    @staticmethod
+    def block_sites(driver, blocked_urls: list):
+        """ Заблокировать переход на список сайтов. """
+        blocked_urls_script = ", ".join(f"'{url}'" for url in blocked_urls)
+
+        script = f"""
+                    (function() {{
+                        var originalOpen = window.open;
+                        window.open = function(url, name, specs) {{
+                            var blockedUrls = [{blocked_urls_script}];
+                            for (var i = 0; i < blockedUrls.length; i++) {{
+                                if (url.includes(blockedUrls[i])) {{
+                                    console.log('Blocked attempt to open URL: ' + url);
+                                    return null;
+                                }}
+                            }}
+                            return originalOpen.apply(this, arguments);
+                        }};
+                    }})();
+                """
+
+        driver.execute_script(script)
+
+    @check_stop_event
+    @BaseHelper.handle_exceptions
+    def switch_to_iframe(self):
+        """ Переключится в iframe хомяка. """
+        iframe = WebDriverWait(self.driver, self.timeout + 30).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'payment-verification'))
+        )
+        self.driver.switch_to.frame(iframe)
+
+        user_info_element = WebDriverWait(self.driver, self.timeout + 30).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'a.user-info p'))
+        )
+        hamster_username = user_info_element.text
+
+        logger.info(f"Успешный вход в Hamster Kombat {hamster_username}")
+
+    @check_stop_event
     @BaseHelper.handle_exceptions
     def exchange_or_level_window(self):
         """ Всплывающее окно при получении дохода от биржи при повышении уровня. """
@@ -68,6 +121,7 @@ class HamsterHelper(BaseHelper):
         except TimeoutException:
             pass
 
+    @check_stop_event
     @BaseHelper.handle_exceptions
     def back_to_main_page(self):
         """ Возвращаемся на главую страницу. """
@@ -81,20 +135,7 @@ class HamsterHelper(BaseHelper):
         except TimeoutException:
             pass
 
-    @BaseHelper.handle_exceptions
-    def switch_to_iframe(self):
-        iframe = WebDriverWait(self.driver, self.timeout + 30).until(
-            EC.presence_of_element_located((By.CLASS_NAME, 'payment-verification'))
-        )
-        self.driver.switch_to.frame(iframe)
-
-        user_info_element = WebDriverWait(self.driver, self.timeout + 30).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'a.user-info p'))
-        )
-        hamster_username = user_info_element.text
-
-        logger.info(f"Успешный вход в Hamster Kombat {hamster_username}")
-
+    @check_stop_event
     @BaseHelper.handle_exceptions
     def use_energy_boost(self):
         """ Используем бустеры энергии если они есть. """
@@ -135,6 +176,7 @@ class HamsterHelper(BaseHelper):
         finally:
             self.back_to_main_page()
 
+    @check_stop_event
     @BaseHelper.handle_exceptions
     def tap_tap(self):
         """ Начать нажимать по кнопке. """
@@ -161,28 +203,7 @@ class HamsterHelper(BaseHelper):
         if self.use_energy_boost():
             self.tap_tap()
 
-    @staticmethod
-    def block_sites(driver, blocked_urls: list):
-        blocked_urls_script = ", ".join(f"'{url}'" for url in blocked_urls)
-
-        script = f"""
-                (function() {{
-                    var originalOpen = window.open;
-                    window.open = function(url, name, specs) {{
-                        var blockedUrls = [{blocked_urls_script}];
-                        for (var i = 0; i < blockedUrls.length; i++) {{
-                            if (url.includes(blockedUrls[i])) {{
-                                console.log('Blocked attempt to open URL: ' + url);
-                                return null;
-                            }}
-                        }}
-                        return originalOpen.apply(this, arguments);
-                    }};
-                }})();
-            """
-
-        driver.execute_script(script)
-
+    @check_stop_event
     @BaseHelper.handle_exceptions
     def claim_rewards(self):
         """ Собрать монеты со всех ежедневных активностей. """
@@ -214,6 +235,9 @@ class HamsterHelper(BaseHelper):
                 )
 
                 for item in earn_items:
+                    if self.stop_event.is_set:
+                        return
+
                     try:
                         item.click()
                     except ElementClickInterceptedException:
@@ -243,22 +267,25 @@ class HamsterHelper(BaseHelper):
             self.back_to_main_page()
             logger.info(f"Ежедневные награды собраны.")
 
+    @check_stop_event
     @BaseHelper.handle_exceptions
     def play_morse(self):
-        """ Пройти ежедневную игру в Морзе. """
+        """ Пройти ежедневную игру Морзе. """
         pass
 
-    def start(self, stop_event):
+    @check_stop_event
+    def start(self):
+        """ Начать тапать пока не будет установлено событие остановки. """
         end_time = 0
         attempts = 0
 
-        while not stop_event.is_set():
+        while not self.stop_event.is_set():
             try:
                 self.exchange_or_level_window()
 
-                if time.time() > end_time:
+                if self.claim_daily_rewards and time.time() > end_time:
                     self.claim_rewards()
-                    end_time = time.time() + 2 * 60 * 60
+                    end_time = time.time() + 12 * 60 * 60
 
                 self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 time.sleep(2)
@@ -280,16 +307,22 @@ class HamsterHelper(BaseHelper):
                 if current_energy_balance > max_energy_limit - max_energy_limit * 0.25:
                     self.tap_tap()
                 else:
-                    time.sleep(max_energy_limit * (30 / 100))
+                    wait_time = time.time() + max_energy_limit * (30 / 100)
+                    while time.time() < wait_time:
+                        if self.stop_event.is_set():
+                            break
+                        time.sleep(1)
 
             except NoSuchWindowException:
+                self.stop_event.set()
                 break
 
             except KeyboardInterrupt:
+                self.stop_event.set()
                 break
 
             except Exception as e:
-                logger.error(f"Caught exception: {e}")
+                logger.error(f"Поймана ошибка: {e}", exc_info=True)
                 attempts += 1
                 logger.warning(f"Что то пошло не так и пользователь был перезапущен {attempts} раз.")
                 self.driver.refresh()

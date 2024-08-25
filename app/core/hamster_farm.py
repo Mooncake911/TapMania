@@ -3,8 +3,8 @@ from typing import List, Tuple
 from dataclasses import dataclass, field
 
 
-from app.core.hamster_helper import HamsterHelper
-from app.core.logging_config import logger
+from .hamster_helper import HamsterHelper
+from .logging_config import logger
 
 
 @dataclass
@@ -13,22 +13,24 @@ class HamsterFarm:
     num_clicks: int = 500
     platform: str = "android"
     show: bool = False
+    claim_daily_rewards: bool = False
 
     users: List[Tuple[str, str]] = field(default_factory=list)
-    stop_event: threading.Event = field(default_factory=threading.Event)
     threads: List[threading.Thread] = field(default_factory=list)
+    tap_list: List[HamsterHelper] = field(default_factory=list)
 
     def user_start_farming(self, name, src):
         tap_halper = HamsterHelper(name=name, src=src, platform=self.platform,
                                    timeout=self.timeout,
                                    num_clicks=self.num_clicks,
-                                   show=self.show)
-        tap_halper.start(self.stop_event)
+                                   show=self.show,
+                                   claim_daily_rewards=self.claim_daily_rewards)
+        self.tap_list.append(tap_halper)
+        tap_halper.start()
 
     def activate_farm(self):
-        logger.info(f"Программа Hamster Kombat Farm запущена.")
-
         try:
+            self.threads = []
             for n, user in enumerate(self.users):
                 thread = threading.Thread(name=f"Thread {n}", target=self.user_start_farming, args=user, daemon=True)
                 self.threads.append(thread)
@@ -36,22 +38,23 @@ class HamsterFarm:
             for thread in self.threads:
                 thread.start()
 
-        except Exception as e:
-            logger.info(f"Поймана ошибка: {e}")
-            self.stop_event.set()
+            logger.info(f"Программа Hamster Kombat Farm запущена.")
+            return True
 
-        finally:
-            logger.info("Прерывание программы. Завершение потоков...")
-            for thread in self.threads:
-                thread.join()
-            logger.info(f"Программа Hamster Kombat Farm завершена.")
+        except Exception as e:
+            self.deactivate_farm()
+            logger.info(f"Поймана ошибка: {e}")
 
     def deactivate_farm(self):
-        self.stop_event.set()
-        logger.info("Прерывание программы. Завершение потоков...")
-        for thread in self.threads:
-            thread.join()
-        logger.info(f"Программа Hamster Kombat Farm завершена.")
+        try:
+            for tap in self.tap_list:
+                tap.stop_event.set()
+
+            logger.info(f"Программа Hamster Kombat Farm завершена.")
+            return False
+
+        except Exception as e:
+            logger.info(f"Поймана ошибка: {e}")
 
 
 if __name__ == '__main__':

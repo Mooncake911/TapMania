@@ -2,6 +2,7 @@ import customtkinter as ctk
 from PIL import Image, ImageDraw, ImageOps
 
 from bd import redis_manager
+from my_widgets import MyToplevelWindow
 
 # Appearance settings
 ctk.set_appearance_mode("light")
@@ -19,18 +20,6 @@ def round_corners(image, radius):
     return rounded_image
 
 
-class ToplevelWindow(ctk.CTkToplevel):
-    def __init__(self, app, message):
-        super().__init__(app)
-        self.resizable(False, False)
-        self.title("Enter Error")
-
-        self.label = ctk.CTkLabel(self, text=message, justify="center")
-        self.label.pack(padx=20, pady=20)
-
-        self.attributes("-topmost", True)
-
-
 class LoginPage(ctk.CTkFrame):
     username = ""
     password = ""
@@ -38,7 +27,7 @@ class LoginPage(ctk.CTkFrame):
     storage = {}
     password_attempts = 0
 
-    toplevel_window = None
+    error_window = None
 
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -91,6 +80,8 @@ class LoginPage(ctk.CTkFrame):
         self.login_button = ctk.CTkButton(self.login_frame, text="Enter", height=40,
                                           command=self.login_event, cursor="hand2")
         self.login_button.grid(row=3, column=0, padx=(30, 30), pady=(10, 35), sticky="nsew")
+
+        self.username_entry.bind("<Return>", lambda event: self.password_entry.focus_set())
         self.password_entry.bind('<Return>', lambda event: self.login_event())
 
     def toggle_event(self):
@@ -116,9 +107,9 @@ class LoginPage(ctk.CTkFrame):
             if user_data:
 
                 if int(user_data.get('online_status')) == 1:
-                    self.enter_error_event(f"Access was denied due to an open session.\n"
-                                           f"If it wasn't you, change your password!\n"
-                                           f"@hamsters_farm_bot")
+                    self.error_event(f"Access was denied due to an open session.\n"
+                                     f"If it wasn't you, change your password!\n"
+                                     f"@hamsters_farm_bot")
 
                 elif int(user_data.get('online_status')) == 0 and user_data.get('password') == password:
                     self.parent.show_main_page()
@@ -128,16 +119,16 @@ class LoginPage(ctk.CTkFrame):
 
                 else:
                     self.password_attempts += 1
-                    self.enter_error_event(f"Password: {password} - is not correct!")
+                    self.error_event(f"Password: {password} - is not correct!")
 
             else:
-                self.enter_error_event(f"Telegram ID: {username} - is not correct!")
+                self.error_event(f"Telegram ID: {username} - is not correct!")
 
         else:
-            self.enter_error_event(f"You was blocked!")
+            self.error_event(f"You was blocked!")
 
-    def enter_error_event(self, massage):
-        if self.toplevel_window is None or not self.toplevel_window.winfo_exists():
-            self.toplevel_window = ToplevelWindow(self, massage)
+    def error_event(self, massage):
+        if self.error_window is None or not self.error_window.winfo_exists():
+            self.error_window = MyToplevelWindow(self, massage)
         else:
-            self.toplevel_window.focus()
+            self.error_window.focus()

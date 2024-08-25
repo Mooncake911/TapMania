@@ -1,117 +1,24 @@
+import uuid
+
 import customtkinter as ctk
-from typing import Callable
 
 from core import HamsterFarm
+from my_widgets import MyToplevelWindow, MyInputFrame, MyInputManagerFrame, MyOptionFrame, MyCheckboxFrame
 
 # Appearance settings
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme("themes/carrot.json")
 
 
-class MyInputFrame(ctk.CTkFrame):
-    def __init__(self, parent, text: str, placeholder_text: str):
-        super().__init__(parent)
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure((0, 1), weight=1)
-
-        self.label = ctk.CTkLabel(self, text=text)
-        self.label.grid(row=0, column=0, padx=(10, 10), pady=(10, 0), sticky="w")
-
-        self.entry = ctk.CTkEntry(self, placeholder_text=placeholder_text)
-        self.entry.grid(row=1, column=0, padx=(10, 10), pady=(0, 10), sticky="ew")
-
-    def get(self):
-        return self.entry.get()
-
-
-class MyOptionFrame(ctk.CTkFrame):
-    def __init__(self, parent, text: str, values: list | tuple, command: Callable = None):
-        super().__init__(parent)
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure((0, 1), weight=1)
-
-        self.label = ctk.CTkLabel(self, text=text)
-        self.label.grid(row=0, column=0, padx=(10, 10), pady=(10, 0), sticky="w")
-
-        self.option_menu = ctk.CTkOptionMenu(self, values=values, command=command)
-        self.option_menu.grid(row=1, column=0, padx=(10, 10), pady=(0, 10), sticky="ew")
-
-    def get(self):
-        return self.option_menu.get()
-
-
-class MyInputManagerFrame(ctk.CTkFrame):
-    def __init__(self, parent, button_text: str, name_placeholder_text: str, value_placeholder_text: str):
-        super().__init__(parent)
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure((0, 1), weight=1)
-
-        self.name_placeholder_text = name_placeholder_text
-        self.value_placeholder_text = value_placeholder_text
-
-        self.scrollable_frame = ctk.CTkScrollableFrame(self)
-        self.scrollable_frame.grid(row=0, column=0, padx=(10, 10), pady=(10, 0), sticky="nsew")
-
-        self.add_button = ctk.CTkButton(self, text=button_text, command=self.add_input_field)
-        self.add_button.grid(row=1, column=0, padx=(10, 10), pady=(10, 10), sticky="ew")
-
-        self.input_fields = []
-
-    def add_input_field(self):
-        frame = ctk.CTkFrame(self.scrollable_frame)
-        frame.pack(pady=(5, 5), padx=(10, 10), fill="x")
-        frame.grid_columnconfigure(0, weight=0)
-        frame.grid_columnconfigure(1, weight=3)
-        frame.grid_columnconfigure(2, weight=0)
-
-        name_field = ctk.CTkEntry(frame, placeholder_text=self.name_placeholder_text)
-        name_field.grid(row=0, column=0, padx=(0, 5), pady=(0, 0), sticky="w")
-
-        value_field = ctk.CTkEntry(frame, placeholder_text=self.value_placeholder_text)
-        value_field.grid(row=0, column=1, padx=(0, 5), pady=(0, 0), sticky="we")
-
-        delete_button = ctk.CTkButton(frame, text="Delete", command=lambda: self.remove_field_event(frame))
-        delete_button.grid(row=0, column=2, padx=(0, 0), pady=(0, 0), sticky="e")
-
-        self.input_fields.append((name_field, value_field, frame))
-
-    def remove_field_event(self, frame):
-        for name_field, value_field, f in self.input_fields:
-            if f == frame:
-                self.input_fields.remove((name_field, value_field, frame))
-                frame.destroy()
-                break
-
-    def get(self):
-        values = []
-        for name_field, value_field, _ in self.input_fields:
-            name = name_field.get()
-            value = value_field.get()
-            values.append((name, value))
-        return values
-
-
-class MyCheckboxFrame(ctk.CTkFrame):
-    def __init__(self, parent, size: tuple, checkbox_texts: list[str]):
-        super().__init__(parent)
-        self.grid_rows, self.grid_columns = size
-        [self.grid_rowconfigure(i, weight=1) for i in range(self.grid_rows)]
-        [self.grid_columnconfigure(j, weight=1) for j in range(self.grid_columns)]
-
-        self.checkboxes = {}
-
-        for index, text in enumerate(checkbox_texts):
-            row = index // self.grid_columns
-            column = index % self.grid_columns
-            checkbox = ctk.CTkCheckBox(self, text=text)
-            checkbox.grid(row=row, column=column, padx=(10, 10), pady=(5, 5), sticky="w")
-            self.checkboxes[text] = checkbox
-
-    def get(self):
-        return {text: checkbox.get() for text, checkbox in self.checkboxes.items()}
+def validate_numeric_input(value: str) -> bool:
+    if value == "":
+        return True
+    return value.isnumeric()
 
 
 class MainPage(ctk.CTkFrame):
+    error_window = None
+
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
 
@@ -127,6 +34,9 @@ class MainPage(ctk.CTkFrame):
         self.hamster_farm = HamsterFarm()
         self.is_farming = False
 
+        # Команды валидации
+        validate_numeric_cmd = self.register(validate_numeric_input)
+
         # Левая панель
         self.left_frame = ctk.CTkFrame(self)
         self.left_frame.grid(row=0, column=0, padx=(10, 10), pady=(10, 10), sticky="nsew")
@@ -140,10 +50,12 @@ class MainPage(ctk.CTkFrame):
                                             values=("android", "android_x", "ios"))
         self.platform_frame.grid(row=1, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
-        self.timeout_frame = MyInputFrame(self.left_frame, text="Timout:", placeholder_text="Enter number")
+        self.timeout_frame = MyInputFrame(self.left_frame, text="Timout:", placeholder_text="10",
+                                          validate_cmd=(validate_numeric_cmd, "%P"))
         self.timeout_frame.grid(row=2, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
-        self.num_clicks_frame = MyInputFrame(self.left_frame, text="Clicks Count:", placeholder_text="Enter number")
+        self.num_clicks_frame = MyInputFrame(self.left_frame, text="Num Clicks:", placeholder_text="100",
+                                             validate_cmd=(validate_numeric_cmd, "%P"))
         self.num_clicks_frame.grid(row=3, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
         self.appearance_frame = MyOptionFrame(self.left_frame, text="Appearance Mode:",
@@ -162,10 +74,11 @@ class MainPage(ctk.CTkFrame):
         self.users_frame.grid(row=0, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
         self.checkbox_frame = MyCheckboxFrame(self.right_frame, size=(2, 3),
-                                              checkbox_texts=["Show", "Show1", "Show2", "Show3", "Show4", "Show5"])
+                                              checkbox_texts=["Show", "Claim Daily Rewards"])
         self.checkbox_frame.grid(row=1, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
-        self.launch_button = ctk.CTkButton(self.right_frame, text="Start Farming", command=self.toggle_farming_event)
+        self.launch_button = ctk.CTkButton(self.right_frame, text="Start Farming", font=("Aral", 24), fg_color="green",
+                                           command=self.toggle_farming_event)
         self.launch_button.grid(row=2, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
     @staticmethod
@@ -174,17 +87,44 @@ class MainPage(ctk.CTkFrame):
 
     def update_farm_parameters(self):
         self.hamster_farm.platform = str(self.platform_frame.get())
-        self.hamster_farm.timeout = int(self.timeout_frame.get())
-        self.hamster_farm.num_clicks = int(self.num_clicks_frame.get())
-        self.hamster_farm.users = list(self.users_frame.get())
+        self.hamster_farm.timeout = int(self.timeout_frame.get(default_value="10"))
+        self.hamster_farm.num_clicks = int(self.num_clicks_frame.get(default_value="100"))
+        self.hamster_farm.users = list(self.users_frame.get(default_name=lambda: uuid.uuid4()))
         self.hamster_farm.show = bool(self.checkbox_frame.get()["Show"])
+        self.hamster_farm.claim_daily_rewards = bool(self.checkbox_frame.get()["Claim Daily Rewards"])
+
+        if not self.hamster_farm.platform:
+            self.error_event(f"Platform is empty!")
+            return False
+
+        if not self.hamster_farm.timeout:
+            self.error_event(f"Timeout is empty!")
+            return False
+
+        if not self.hamster_farm.num_clicks:
+            self.error_event(f"Num Clicks is empty!")
+            return False
+
+        if not self.hamster_farm.users:
+            self.error_event(f"Telegram Account List is empty!")
+            return False
+
+        return True
 
     def toggle_farming_event(self):
         if self.is_farming:
-            self.hamster_farm.deactivate_farm()
-            self.launch_button.configure(text="Start Farming")
+            self.is_farming = self.hamster_farm.deactivate_farm()
+            self.launch_button.configure(text="Start Farming", fg_color="green")
+
+        elif self.update_farm_parameters():
+            self.is_farming = self.hamster_farm.activate_farm()
+            self.launch_button.configure(text="Stop Farming", fg_color="red")
+
         else:
-            self.update_farm_parameters()
-            self.hamster_farm.activate_farm()
-            self.launch_button.configure(text="Stop Farming")
-        self.is_farming = not self.is_farming
+            pass
+
+    def error_event(self, massage):
+        if self.error_window is None or not self.error_window.winfo_exists():
+            self.error_window = MyToplevelWindow(self, massage)
+        else:
+            self.error_window.focus()

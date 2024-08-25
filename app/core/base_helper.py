@@ -18,11 +18,11 @@ from selenium.common.exceptions import (NoSuchElementException,
 from urllib3.exceptions import ProtocolError, NewConnectionError, MaxRetryError
 
 
-from app.core.logging_config import logger
+from .logging_config import logger
 
 
 class BaseHelper(object):
-    driver_path = Path('chromedriver-win64/chromedriver.exe')
+    driver_path = Path('core/chromedriver-win64/chromedriver.exe')
 
     def __init__(self, show):
         options = Options()
@@ -68,6 +68,7 @@ class BaseHelper(object):
 
         return wrapper
 
+    @handle_exceptions
     def close(self):
         """ Остановка Webdriver. """
         if self.driver:
