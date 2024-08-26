@@ -12,7 +12,7 @@ class HamsterFarm:
     timeout: int = 10
     num_clicks: int = 500
     platform: str = "android"
-    show: bool = False
+    headless: bool = False
     claim_daily_rewards: bool = False
 
     users: List[Tuple[str, str]] = field(default_factory=list)
@@ -23,7 +23,7 @@ class HamsterFarm:
         tap_halper = HamsterHelper(name=name, src=src, platform=self.platform,
                                    timeout=self.timeout,
                                    num_clicks=self.num_clicks,
-                                   show=self.show,
+                                   headless=self.headless,
                                    claim_daily_rewards=self.claim_daily_rewards)
         self.tap_list.append(tap_halper)
         tap_halper.start()

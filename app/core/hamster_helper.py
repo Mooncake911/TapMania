@@ -1,9 +1,8 @@
+import os
 import re
-import threading
 import time
 import random
-
-from pathlib import Path
+import threading
 from functools import wraps
 
 from selenium.webdriver.common.by import By
@@ -22,10 +21,13 @@ from .base_helper import BaseHelper
 from .logging_config import logger
 
 
+base_path = os.path.dirname(__file__)
+
+
 class HamsterHelper(BaseHelper):
     @BaseHelper.handle_exceptions
-    def __init__(self, name, src, platform, timeout, num_clicks, show, claim_daily_rewards):
-        super().__init__(show=show)
+    def __init__(self, name, src, platform, timeout, num_clicks, headless, claim_daily_rewards):
+        super().__init__(headless=headless)
         self.stop_event = threading.Event()
         self.base_url = self.rewrite_html(name, src, platform)
         self.timeout = timeout
@@ -49,18 +51,22 @@ class HamsterHelper(BaseHelper):
     @staticmethod
     def rewrite_html(name, src, platform) -> str:
         """ Перезаписать src в шаблоне html."""
-        with open(Path("core/hamster.html").absolute().as_posix(), "r", encoding="utf-8") as file:
+        html_template_path = os.path.join(base_path, "hamster.html")
+        accounts_dir = os.path.join(base_path, 'accounts')
+        os.makedirs(accounts_dir, exist_ok=True)
+        html_user_path = os.path.join(accounts_dir, f"{name}.html")
+
+        with open(html_template_path, "r", encoding="utf-8") as file:
             html_content = file.read()
 
         if 'tgWebAppPlatform=web' in src:
             new_src = src.replace('tgWebAppPlatform=web', f'tgWebAppPlatform={platform}')
             html_content = re.sub(r'src="[^"]*"', f'src="{new_src}"', html_content)
 
-            new_html_path = Path(f"core/accounts/{name}.html")
-            with open(new_html_path, "w", encoding="utf-8") as file:
+            with open(html_user_path, "w", encoding="utf-8") as file:
                 file.write(html_content)
 
-            return new_html_path.absolute().as_posix()
+            return html_user_path
 
         else:
             raise NoSuchElementException

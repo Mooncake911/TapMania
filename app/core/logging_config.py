@@ -1,9 +1,8 @@
 import sys
 import logging
 
-# from config import LOG_LEVEL
+from config import LOG_LEVEL
 
-LOG_LEVEL = "INFO"
 # Logging settings
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)

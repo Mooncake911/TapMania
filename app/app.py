@@ -1,9 +1,13 @@
+import os
 import customtkinter as ctk
 
 from bd import redis_manager
 
-from login_page import LoginPage
-from main_page import MainPage
+from .login_page import LoginPage
+from .main_page import MainPage
+
+
+base_path = os.path.dirname(__file__)
 
 
 class App(ctk.CTk):
@@ -12,7 +16,7 @@ class App(ctk.CTk):
 
         self.attributes('-topmost', True)
         self.title("Hamster Kombat Farm")
-        self.iconbitmap("images/hamsters.ico")
+        self.iconbitmap(os.path.join(base_path, "images", "hamster.ico"))
         self.geometry("899x499")
 
         self.login_page = LoginPage(self, corner_radius=0)
@@ -34,9 +38,3 @@ class App(ctk.CTk):
     def close(self):
         if self.login_page.username:
             redis_manager.update_user_status(telegram_id=self.login_page.username, online_status=0)
-
-
-if __name__ == "__main__":
-    app = App()
-    app.mainloop()
-    app.close()

@@ -1,13 +1,16 @@
+import os
 import uuid
-
 import customtkinter as ctk
 
-from core import HamsterFarm
-from my_widgets import MyToplevelWindow, MyInputFrame, MyInputManagerFrame, MyOptionFrame, MyCheckboxFrame
+from .core import HamsterFarm
+from .my_widgets import MyToplevelWindow, MyInputFrame, MyInputManagerFrame, MyOptionFrame, MyCheckboxFrame
+
+base_path = os.path.dirname(__file__)
+
 
 # Appearance settings
 ctk.set_appearance_mode("light")
-ctk.set_default_color_theme("themes/carrot.json")
+ctk.set_default_color_theme(os.path.join(base_path, "themes", "carrot.json"))
 
 
 def validate_numeric_input(value: str) -> bool:
@@ -74,7 +77,7 @@ class MainPage(ctk.CTkFrame):
         self.users_frame.grid(row=0, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
         self.checkbox_frame = MyCheckboxFrame(self.right_frame, size=(2, 3),
-                                              checkbox_texts=["Show", "Claim Daily Rewards"])
+                                              checkbox_texts=["Headless Mode", "Claim Daily Rewards"])
         self.checkbox_frame.grid(row=1, column=0, padx=(10, 10), pady=(10, 5), sticky="nsew")
 
         self.launch_button = ctk.CTkButton(self.right_frame, text="Start Farming", font=("Aral", 24), fg_color="green",
@@ -90,7 +93,7 @@ class MainPage(ctk.CTkFrame):
         self.hamster_farm.timeout = int(self.timeout_frame.get(default_value="10"))
         self.hamster_farm.num_clicks = int(self.num_clicks_frame.get(default_value="100"))
         self.hamster_farm.users = list(self.users_frame.get(default_name=lambda: uuid.uuid4()))
-        self.hamster_farm.show = bool(self.checkbox_frame.get()["Show"])
+        self.hamster_farm.headless = bool(self.checkbox_frame.get()["Headless Mode"])
         self.hamster_farm.claim_daily_rewards = bool(self.checkbox_frame.get()["Claim Daily Rewards"])
 
         if not self.hamster_farm.platform:

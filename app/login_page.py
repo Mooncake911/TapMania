@@ -1,12 +1,16 @@
-import customtkinter as ctk
+import os
 from PIL import Image, ImageDraw, ImageOps
+import customtkinter as ctk
 
 from bd import redis_manager
-from my_widgets import MyToplevelWindow
+from .my_widgets import MyToplevelWindow
+
+base_path = os.path.dirname(__file__)
+
 
 # Appearance settings
 ctk.set_appearance_mode("light")
-ctk.set_default_color_theme("themes/carrot.json")
+ctk.set_default_color_theme(os.path.join(base_path, "themes", "carrot.json"))
 
 
 def round_corners(image, radius):
@@ -41,7 +45,7 @@ class LoginPage(ctk.CTkFrame):
         self.image_frame = ctk.CTkFrame(self)
         self.image_frame.grid(row=0, column=0, padx=(0, 0), pady=(0, 0), sticky="nsew")
 
-        original_image = Image.open("images/hamsters.png")
+        original_image = Image.open(os.path.join(base_path, "images", "hamster.png"))
         rounded_image = round_corners(original_image, radius=25)
         self.bg_image = ctk.CTkImage(dark_image=rounded_image, light_image=rounded_image, size=(500, 500))
         self.bg_label = ctk.CTkLabel(self.image_frame, image=self.bg_image, text="", bg_color="orange")
@@ -58,11 +62,11 @@ class LoginPage(ctk.CTkFrame):
         self.username_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Telegram ID", height=35)
         self.username_entry.grid(row=1, column=0, padx=(30, 30), pady=(10, 10), sticky="nsew")
 
-        self.image_eye = ctk.CTkImage(dark_image=Image.open("images/hear_no_evil.png"),
-                                      light_image=Image.open("images/hear_no_evil.png"),
-                                      size=(20, 20))
-        self.image_eye_splash = ctk.CTkImage(dark_image=Image.open("images/see_no_evil.png"),
-                                             light_image=Image.open("images/see_no_evil.png"),
+        self.image_eye_open = ctk.CTkImage(dark_image=Image.open(os.path.join(base_path, "images", "hear_no_evil.png")),
+                                           light_image=Image.open(os.path.join(base_path, "images", "hear_no_evil.png")),
+                                           size=(20, 20))
+        self.image_eye_closed = ctk.CTkImage(dark_image=Image.open(os.path.join(base_path, "images", "see_no_evil.png")),
+                                             light_image=Image.open(os.path.join(base_path, "images", "see_no_evil.png")),
                                              size=(20, 20))
 
         self.password_frame = ctk.CTkFrame(self.login_frame,
@@ -72,7 +76,7 @@ class LoginPage(ctk.CTkFrame):
         self.password_frame.grid_columnconfigure(1, weight=0)
         self.password_entry = ctk.CTkEntry(self.password_frame, placeholder_text="Your password", height=35, show="*")
         self.password_entry.grid(row=0, column=0, padx=(0, 0), pady=(0, 0), sticky="nsew")
-        self.toggle_button = ctk.CTkButton(self.password_frame, text="", image=self.image_eye_splash, width=10,
+        self.toggle_button = ctk.CTkButton(self.password_frame, text="", image=self.image_eye_closed, width=10,
                                            command=self.toggle_event, cursor="hand2")
         self.toggle_button.grid(row=0, column=1, padx=(0, 0), pady=(0, 0), sticky="nsew")
         self.password_frame.grid(row=2, column=0, padx=(30, 30), pady=(10, 10), sticky="nsew")
@@ -87,10 +91,10 @@ class LoginPage(ctk.CTkFrame):
     def toggle_event(self):
         if self.password_entry.cget("show") == "*":
             self.password_entry.configure(show="")
-            self.toggle_button.configure(image=self.image_eye)
+            self.toggle_button.configure(image=self.image_eye_open)
         else:
             self.password_entry.configure(show="*")
-            self.toggle_button.configure(image=self.image_eye_splash)
+            self.toggle_button.configure(image=self.image_eye_closed)
 
     def login_event(self):
         username = self.username_entry.get().replace(" ", "")
