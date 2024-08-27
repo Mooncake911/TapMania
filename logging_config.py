@@ -1,7 +1,7 @@
 import sys
 import logging
 
-import config
+from . import config
 
 # Logging settings
 logger = logging.getLogger(__name__)
