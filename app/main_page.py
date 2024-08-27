@@ -120,12 +120,12 @@ class MainPage(ctk.CTkFrame):
         def stop_farming():
             self.is_farming = False
             self.hamster_farm.deactivate_farm()
-            self.after(0, self.launch_button.configure(text="Start Farming", fg_color="green", state="normal"))
+            self.after(0, lambda: self.launch_button.configure(text="Start Farming", fg_color="green", state="normal"))
 
         def start_farming():
             self.is_farming = True
             self.hamster_farm.activate_farm()
-            self.after(0, self.launch_button.configure(text="Stop Farming", fg_color="red", state="normal"))
+            self.after(0, lambda: self.launch_button.configure(text="Stop Farming", fg_color="red", state="normal"))
 
         if self.is_farming:
             self.launch_button.configure(text="Don't interrupt", fg_color="gray", state="disabled")
