@@ -10,7 +10,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 from yoomoney import Client, Quickpay
 
-from bot.keyboards import user_kb as kb
+from .keyboards import user_kb as kb
 from bd import redis_manager
 from config import YOOMONEY_ACCESS_TOKEN
 
