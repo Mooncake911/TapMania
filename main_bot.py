@@ -1,8 +1,8 @@
 import sys
 import logging
 import asyncio
-from routers import register_all_handlers
-from vars import dp, bot
+from bot.routers import register_all_handlers
+from bot.vars import dp, bot
 
 
 @dp.startup()
