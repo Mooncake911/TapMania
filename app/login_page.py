@@ -62,11 +62,14 @@ class LoginPage(ctk.CTkFrame):
         self.username_entry = ctk.CTkEntry(self.login_frame, placeholder_text="Telegram ID", height=35)
         self.username_entry.grid(row=1, column=0, padx=(30, 30), pady=(10, 10), sticky="nsew")
 
-        self.image_eye_open = ctk.CTkImage(dark_image=Image.open(os.path.join(base_path, "images", "hear_no_evil.png")),
-                                           light_image=Image.open(os.path.join(base_path, "images", "hear_no_evil.png")),
+        hear_no_evil_image_path = os.path.join(base_path, "images", "hear_no_evil.png")
+        self.image_eye_open = ctk.CTkImage(dark_image=Image.open(hear_no_evil_image_path),
+                                           light_image=Image.open(hear_no_evil_image_path),
                                            size=(20, 20))
-        self.image_eye_closed = ctk.CTkImage(dark_image=Image.open(os.path.join(base_path, "images", "see_no_evil.png")),
-                                             light_image=Image.open(os.path.join(base_path, "images", "see_no_evil.png")),
+
+        see_no_evil_image_path = os.path.join(base_path, "images", "see_no_evil.png")
+        self.image_eye_closed = ctk.CTkImage(dark_image=Image.open(see_no_evil_image_path),
+                                             light_image=Image.open(see_no_evil_image_path),
                                              size=(20, 20))
 
         self.password_frame = ctk.CTkFrame(self.login_frame,

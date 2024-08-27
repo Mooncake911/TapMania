@@ -1,3 +1,5 @@
+from logging_config import logger
+
 import os
 import platform
 import subprocess
@@ -84,7 +86,7 @@ def setup_webdriver(browser_name, headless):
         service = webdriver.ChromeService()
         options = webdriver.ChromeOptions()
         if headless:
-            options.add_argument('--headless')
+            options.add_argument('--headless=old')
             options.add_argument('--disable-gpu')
             options.add_argument('--no-sandbox')
             options.add_argument('--log-level=3')
@@ -94,7 +96,7 @@ def setup_webdriver(browser_name, headless):
         service = webdriver.EdgeService()
         options = webdriver.EdgeOptions()
         if headless:
-            options.add_argument('--headless')
+            options.add_argument('--headless=old')
             options.add_argument('--disable-gpu')
             options.add_argument('--no-sandbox')
             options.add_argument('--log-level=3')

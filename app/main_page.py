@@ -1,5 +1,6 @@
 import os
 import uuid
+import threading
 import customtkinter as ctk
 
 from .core import HamsterFarm
@@ -115,13 +116,24 @@ class MainPage(ctk.CTkFrame):
         return True
 
     def toggle_farming_event(self):
+
+        def stop_farming():
+            self.is_farming = False
+            self.hamster_farm.deactivate_farm()
+            self.after(0, self.launch_button.configure(text="Start Farming", fg_color="green", state="normal"))
+
+        def start_farming():
+            self.is_farming = True
+            self.hamster_farm.activate_farm()
+            self.after(0, self.launch_button.configure(text="Stop Farming", fg_color="red", state="normal"))
+
         if self.is_farming:
-            self.is_farming = self.hamster_farm.deactivate_farm()
-            self.launch_button.configure(text="Start Farming", fg_color="green")
+            self.launch_button.configure(text="Don't interrupt", fg_color="gray", state="disabled")
+            threading.Thread(target=stop_farming).start()
 
         elif self.update_farm_parameters():
-            self.is_farming = self.hamster_farm.activate_farm()
-            self.launch_button.configure(text="Stop Farming", fg_color="red")
+            self.launch_button.configure(text="Don't interrupt", fg_color="gray", state="disabled")
+            threading.Thread(target=start_farming).start()
 
         else:
             pass

@@ -1,3 +1,5 @@
+from logging_config import logger
+
 import sys
 from functools import wraps
 
@@ -12,7 +14,6 @@ from selenium.common.exceptions import (NoSuchElementException,
 from urllib3.exceptions import ProtocolError, NewConnectionError, MaxRetryError
 
 
-from .logging_config import logger
 from .my_driver import get_web_driver
 
 

@@ -1,3 +1,5 @@
+from logging_config import logger
+
 import os
 import re
 import time
@@ -18,7 +20,6 @@ from selenium.common.exceptions import (NoSuchElementException,
                                         WebDriverException)
 
 from .base_helper import BaseHelper
-from .logging_config import logger
 
 
 base_path = os.path.dirname(__file__)
@@ -34,9 +35,13 @@ class HamsterHelper(BaseHelper):
         self.num_clicks = num_clicks
         self.claim_daily_rewards = claim_daily_rewards
 
-        self.driver.get(self.base_url)
-        self.driver.set_window_rect(width=300, height=800)
-        self.switch_to_iframe()
+        if self.base_url:
+            self.driver.get(self.base_url)
+            self.driver.set_window_rect(width=300, height=800)
+            self.switch_to_iframe()
+        else:
+            self.stop_event.set()
+            logger.error(f'Для пользователя [{name}] неверно указан src: {src}')
 
     @staticmethod
     def check_stop_event(func):
@@ -51,25 +56,31 @@ class HamsterHelper(BaseHelper):
     @staticmethod
     def rewrite_html(name, src, platform) -> str:
         """ Перезаписать src в шаблоне html."""
+        def extract_url(s):
+            match = re.search(r'src=["\']?([^"\'>\s]+)["\']?|([^"\'>\s]+)', s)
+            if match:
+                return match.group(1) or match.group(2)
+            return None
+
+        src = extract_url(src)
+
         html_template_path = os.path.join(base_path, "hamster.html")
         accounts_dir = os.path.join(base_path, 'accounts')
         os.makedirs(accounts_dir, exist_ok=True)
         html_user_path = os.path.join(accounts_dir, f"{name}.html")
 
-        with open(html_template_path, "r", encoding="utf-8") as file:
-            html_content = file.read()
+        if re.search(r'tgWebAppPlatform=(web|ios|android|android_x)', src):
+            new_src = re.sub(r'tgWebAppPlatform=(web|ios|android|android_x)', f'tgWebAppPlatform={platform}', src)
 
-        if 'tgWebAppPlatform=web' in src:
-            new_src = src.replace('tgWebAppPlatform=web', f'tgWebAppPlatform={platform}')
-            html_content = re.sub(r'src="[^"]*"', f'src="{new_src}"', html_content)
+            with open(html_template_path, "r", encoding="utf-8") as file:
+                html_template_content = file.read()
+
+            html_content = re.sub(r'src="[^"]*"', f'src="{new_src}"', html_template_content)
 
             with open(html_user_path, "w", encoding="utf-8") as file:
                 file.write(html_content)
 
             return html_user_path
-
-        else:
-            raise NoSuchElementException
 
     @staticmethod
     def block_sites(driver, blocked_urls: list):
@@ -108,7 +119,7 @@ class HamsterHelper(BaseHelper):
         )
         hamster_username = user_info_element.text
 
-        logger.info(f"Успешный вход в Hamster Kombat {hamster_username}")
+        logger.info(f"Успешный вход в Hamster Kombat {hamster_username}!")
 
     @check_stop_event
     @BaseHelper.handle_exceptions
@@ -176,11 +187,9 @@ class HamsterHelper(BaseHelper):
             return True
 
         except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
+            self.back_to_main_page()
             logger.info(f"Нет доступного бустера энергии.")
             return False
-
-        finally:
-            self.back_to_main_page()
 
     @check_stop_event
     @BaseHelper.handle_exceptions
@@ -194,17 +203,20 @@ class HamsterHelper(BaseHelper):
                 (By.CLASS_NAME, 'user-tap-button.button'))
         )
 
-        logger.info(f"Фарм монет в Hamster Kombat запущен.")
+        logger.info(f"Добыча монет в Hamster Kombat запущена.")
 
         for _ in range(self.num_clicks):
             try:
-                hamster_button.click()
-                time.sleep(random.randint(1, 10) / 100)
+                if self.stop_event.is_set():
+                    break
+                else:
+                    hamster_button.click()
+                    time.sleep(random.randint(1, 10) / 100)
 
             except (ElementNotInteractableException, ElementClickInterceptedException):
                 self.exchange_or_level_window()
 
-        logger.info(f"Фарм монет Hamster Kombat завершён.")
+        logger.info(f"Добыча монет Hamster Kombat завершёна.")
 
         if self.use_energy_boost():
             self.tap_tap()
@@ -281,7 +293,7 @@ class HamsterHelper(BaseHelper):
 
     @check_stop_event
     def start(self):
-        """ Начать тапать пока не будет установлено событие остановки. """
+        """ Начать добывать монеты пока не будет установлено событие остановки. """
         end_time = 0
         attempts = 0
 
