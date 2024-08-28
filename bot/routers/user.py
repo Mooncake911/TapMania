@@ -34,7 +34,7 @@ def make_payment_link(order_id):
         quickpay_form="shop",
         targets="Payment for access to the service",
         paymentType="AC",  # AC - банковская карта, PC - Яндекс.Деньги
-        sum=2,  # RUB
+        sum=1500,  # RUB
         label=order_id
     )
     return quick_pay
@@ -63,7 +63,7 @@ async def command_start(message: types.Message, state: FSMContext) -> None:
         quick_pay = make_payment_link(order_id)
         await message.answer(f"Hello, {html.bold(message.from_user.full_name)}!\n"
                              f"You will get access after payment:\n",
-                             reply_markup=await kb.new_user_keyboard(url=quick_pay.redirected_url))
+                             reply_markup=await kb.new_user_keyboard(bay_url=quick_pay.redirected_url))
     else:
         await message.answer(f"Your access data:\n"
                              f"Login: {user_id}\n"
