@@ -35,7 +35,7 @@ def make_payment_link(order_id):
         quickpay_form="shop",
         targets="Payment for access to the service",
         paymentType="AC",  # AC - банковская карта, PC - Яндекс.Деньги
-        sum=1500,  # RUB
+        sum=1000,  # RUB
         label=order_id
     )
     return quick_pay

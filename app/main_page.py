@@ -132,14 +132,14 @@ class MainPage(ctk.CTkFrame):
         if self.is_farming:
             self.is_farming = False
             self.launch_button.configure(text="Don't interrupt", fg_color="gray", state="disabled")
-            threading.Thread(name="Stop Farming", target=stop_farming, daemon=True).start()
+            threading.Thread(name="Stop Farming", target=stop_farming).start()
 
         else:
             update_massage = self.update_farm_parameters()
             if update_massage is None:
                 self.is_farming = True
                 self.launch_button.configure(text="Don't interrupt", fg_color="gray", state="disabled")
-                threading.Thread(name="Start Farming", target=start_farming, daemon=True).start()
+                threading.Thread(name="Start Farming", target=start_farming).start()
             else:
                 self.error_event(f"Telegram Account List is empty!")
 

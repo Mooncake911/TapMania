@@ -61,15 +61,15 @@ class HamsterHelper(BaseHelper):
                         try:
                             self.popup_window_button_large(
                                 massage=f"Появление всплывающего окна, возможно повысился уровень.")
-                        except Exception as inner_e:
-                            logger.warning(f"Не удалось нажать большую кнопку всплывающего окна: {inner_e}", exc_info=True)
+                        except Exception as e:
+                            logger.warning(f"Не удалось нажать большую кнопку всплывающего окна: {e}", exc_info=True)
                         try:
                             self.popup_window_button_close(
                                 massage=f"Закрытие всплывающего окна, возможно повысился уровень.")
-                        except Exception as inner_e:
-                            logger.warning(f"Не удалось нажать кнопку закрытия всплывающего окна: {inner_e}", exc_info=True)
-                    except Exception as outer_e:
-                        logger.error(f"Проблема с прерыванием элемента не была решена.\n{outer_e}", exc_info=True)
+                        except Exception as e:
+                            logger.warning(f"Не удалось нажать кнопку закрытия всплывающего окна: {e}", exc_info=True)
+                    except Exception as e:
+                        logger.error(f"Проблема с прерыванием элемента не была решена.\n{e}", exc_info=True)
 
                 except (TimeoutException, StaleElementReferenceException):
                     attempts += 1
@@ -370,7 +370,7 @@ class HamsterHelper(BaseHelper):
         attempts = 0
         max_attempts = 1000
 
-        end_time = 0
+        big_end_time = 0
 
         self.switch_to_iframe()
         self.popup_window_button_large(massage=f"Биржа принесла доход.")
@@ -381,8 +381,8 @@ class HamsterHelper(BaseHelper):
                     break
 
                 else:
-                    if time.time() > end_time:
-                        end_time = time.time() + 12 * 60 * 60
+                    if time.time() > big_end_time:
+                        big_end_time = time.time() + 12 * 60 * 60
                         if self.claim_daily_rewards:
                             self.claim_rewards()
                             logger.info(f"Ежедневные награды были собраны.")
@@ -398,8 +398,8 @@ class HamsterHelper(BaseHelper):
                     else:
                         wait_time = (max_energy_limit - current_energy_balance) * (30 / 100)  # 100 за 30 сек
                         logger.info(f"Ожидание заполнения энергии: {wait_time / 60} мин.")
-                        end_time = time.time() + wait_time
-                        while time.time() < end_time:
+                        small_end_time = time.time() + wait_time
+                        while time.time() < small_end_time:
                             if self.stop_event.is_set():
                                 break
                             time.sleep(0.1)

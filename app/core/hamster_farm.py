@@ -54,7 +54,7 @@ class HamsterFarm:
         try:
             for tap_halper in self.tap_list:
                 tap_halper.stop()
-                tap_halper.close()
+                # tap_halper.close()
 
             for thread in self.threads:
                 thread.join(timeout=30)
