@@ -47,34 +47,61 @@ class HamsterHelper(BaseHelper):
     def check_stop_event(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            if self.stop_event.is_set():
-                raise StopIteration
-
             attempts = 0
             max_attempts = 3
 
-            while not self.stop_event.is_set() and attempts < max_attempts:
+            while attempts < max_attempts:
                 try:
-                    return func(self, *args, **kwargs)
+                    if self.stop_event.is_set():
+                        break
+                    else:
+                        return func(self, *args, **kwargs)
 
-                except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException,
-                        StaleElementReferenceException):
+                except ElementClickInterceptedException:
+                    try:
+                        try:
+                            self.popup_window_button_large(
+                                massage=f"Появление всплывающего окна, возможно повысился уровень.")
+                        except Exception as inner_e:
+                            logger.warning(f"Не удалось нажать большую кнопку всплывающего окна: {inner_e}", exc_info=True)
+                        try:
+                            self.popup_window_button_close(
+                                massage=f"Закрытие всплывающего окна, возможно повысился уровень.")
+                        except Exception as inner_e:
+                            logger.warning(f"Не удалось нажать кнопку закрытия всплывающего окна: {inner_e}", exc_info=True)
+                    except Exception as outer_e:
+                        logger.error(f"Проблема с прерыванием элемента не была решена.\n{outer_e}", exc_info=True)
+
+                except (TimeoutException, StaleElementReferenceException):
                     attempts += 1
+                    logger.warning(f"Что-то пошло не так: {attempts}-ая попытка найти элемент.", exc_info=True)
 
                 except NoSuchElementException as e:
-                    if attempts == max_attempts:
-                        logger.error(f"Элемент не был найден на странице.\n{e}", exc_info=True)
+                    logger.warning(f"Элемент не был найден на странице.\n{e}", exc_info=True)
 
-                except StopIteration:
+                except NoSuchWindowException:
+                    logger.warning(f"Было закрыто окно браузера.")
                     break
 
-                except (KeyboardInterrupt, NoSuchWindowException):
-                    self.stop_event.set()
+                except (ConnectionError, WebDriverException):
+                    attempts += 1
+                    self.driver.refresh()
+                    self.switch_to_iframe()
+                    logger.warning(f"WebDriver был перезапущен {attempts} раз.")
+
+                except StopIteration:
+                    logger.info(f"Вызвана остановка программы.")
+                    break
+
+                except KeyboardInterrupt:
+                    logger.warning(f"Было принудительное прерывание программы или закрытие окна.")
                     break
 
                 except Exception as e:
                     logger.error(f"Неизвестная ошибка.\n{e}", exc_info=True)
                     break
+
+            self.close()
 
         return wrapper
 
@@ -152,33 +179,36 @@ class HamsterHelper(BaseHelper):
 
         logger.info(f"Успешный вход в Hamster Kombat {hamster_username}!")
 
-    @check_stop_event
-    def popup_window_button_large(self):
-        """ Всплывающее окно при получении дохода от биржи или при повышении уровня. """
+    def popup_window_button_large(self, massage):
+        """ Всплывающее окно. """
         large_button = WebDriverWait(self.driver, self.timeout).until(
             EC.element_to_be_clickable(
                 (By.CLASS_NAME, 'bottom-sheet-button.button.button-primary.button-large'))
         )
         large_button.click()
+        logger.info(massage)
 
-    @check_stop_event
-    def popup_window_button_close(self):
+    def popup_window_button_close(self, massage):
         """ Закрытие всплывающего окна. """
-        close_button = WebDriverWait(self.driver, self.timeout / 3).until(
+        close_button = WebDriverWait(self.driver, self.timeout).until(
             EC.element_to_be_clickable(
                 (By.CLASS_NAME, 'bottom-sheet-close'))
         )
         close_button.click()
+        logger.info(massage)
 
     @check_stop_event
-    def back_to_main_page(self):
-        """ Возвращаемся на главую страницу. """
+    def app_bar_items(self, index, massage):
+        """ Переход на элемент в нижнем меню. """
         self.scroll_page(self.driver)
+
         bar_buttons = WebDriverWait(self.driver, self.timeout).until(
             EC.presence_of_all_elements_located(
                 (By.CSS_SELECTOR, '.app-bar-item.no-select'))
         )
-        bar_buttons[0].click()
+        bar_buttons[index].click()
+
+        logger.info(massage)
 
     @check_stop_event
     def use_boosts(self):
@@ -212,7 +242,7 @@ class HamsterHelper(BaseHelper):
             return True
 
         except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
-            self.back_to_main_page()
+            self.app_bar_items(index=0, massage=f"Переход на главную страницу.")
             logger.info(f"Нет доступного бустера энергии.")
             return False
 
@@ -226,11 +256,20 @@ class HamsterHelper(BaseHelper):
         )
 
         for _ in range(self.num_clicks):
-            if self.stop_event.is_set():
-                return StopIteration
+            # Начитаем нажимать на хомяка
+            if not self.stop_event.is_set():
+                try:
+                    try:
+                        hamster_button.click()
+                    except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
+                        self.scroll_page(self.driver)
+                        hamster_button.click()
+                    time.sleep(random.randint(1, 10) / 100)
+                except ElementNotInteractableException:
+                    logger.warning(f"Не удалось кликнуть на хомяка.")
+                    continue
             else:
-                hamster_button.click()
-                time.sleep(random.randint(1, 10) / 100)
+                raise StopIteration
 
         if self.use_boosts():
             self.tap_tap()
@@ -238,12 +277,7 @@ class HamsterHelper(BaseHelper):
     @check_stop_event
     def claim_rewards(self):
         """ Собрать монеты со всех ежедневных активностей. """
-        self.scroll_page(self.driver)
-        bar_buttons = WebDriverWait(self.driver, self.timeout).until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, '.app-bar-item.no-select'))
-        )
-        bar_buttons[4].click()
+        self.app_bar_items(index=4, massage=f"Переход на страницу ежедневных активностей.")
 
         self.block_sites(driver=self.driver,
                          blocked_urls=["youtu.be", "youtube.com",
@@ -258,25 +292,37 @@ class HamsterHelper(BaseHelper):
         )
 
         for column in earn_column:
-            earn_items = WebDriverWait(column, self.timeout).until(
-                EC.presence_of_all_elements_located(
-                    (By.CLASS_NAME, 'earn-item'))
-            )
+            # Получаем элементы содержащиеся в колонке
+            if not self.stop_event.is_set():
+                earn_items = WebDriverWait(column, self.timeout).until(
+                    EC.presence_of_all_elements_located(
+                        (By.CLASS_NAME, 'earn-item'))
+                )
+            else:
+                raise StopIteration
 
             for item in earn_items:
-                try:
-                    item.click()
-                except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
-                    self.scroll_page(self.driver)
-                    item.click()
+                # Проходимся по всем элементам в колонке
+                if not self.stop_event.is_set():
+                    try:
+                        item.click()
+                    except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
+                        self.scroll_page(self.driver)
+                        item.click()
 
-                try:
-                    self.popup_window_button_large()
-                    self.popup_window_button_close()
-                except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
-                    pass
+                    try:
+                        self.popup_window_button_large(massage=f"Задание выполнено.")
+                    except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
+                        pass
 
-        self.back_to_main_page()
+                    try:
+                        self.popup_window_button_close(massage=f"Задание выполнено.")
+                    except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
+                        pass
+                else:
+                    raise StopIteration
+
+        self.app_bar_items(index=0, massage=f"Переход на главную страницу.")
 
     @check_stop_event
     def play_morse(self):
@@ -286,21 +332,19 @@ class HamsterHelper(BaseHelper):
     @check_stop_event
     def get_energy(self):
         """ Получаем текущие значения энергии. """
-        def get_text():
-            self.scroll_page(self.driver)
-            energy_limit_element = WebDriverWait(self.driver, self.timeout).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, 'div.user-tap-energy p'))
-            )
-            text = energy_limit_element.text.strip()
-            return text
+        self.scroll_page(self.driver)
 
         max_attempts = 5
         attempts = 0
 
         while attempts < max_attempts:
             try:
-                energy_limit_text = get_text()
+                energy_limit_element = WebDriverWait(self.driver, self.timeout).until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR, 'div.user-tap-energy p'))
+                )
+                energy_limit_text = energy_limit_element.text.strip()
+
                 if '/' in energy_limit_text:
                     current_energy_balance, max_energy_limit = energy_limit_text.split('/')
                     current_energy_balance = int(current_energy_balance.strip())
@@ -309,58 +353,58 @@ class HamsterHelper(BaseHelper):
                 else:
                     break
 
-            except ValueError:
+            except ElementNotInteractableException:
+                self.scroll_page(self.driver)
+
+            except TypeError:
                 attempts += 1
 
         return 0, 1000
 
     def start(self):
         """ Начать добывать монеты пока не будет установлено событие остановки. """
-        end_time = 0
         attempts = 0
+        max_attempts = 1000
+
+        end_time = 0
 
         self.switch_to_iframe()
-        self.popup_window_button_large()
-        logger.info(f"Биржа принесла доход.")
+        self.popup_window_button_large(massage=f"Биржа принесла доход.")
 
-        while not self.stop_event.is_set():
+        while attempts < max_attempts:
             try:
-                if time.time() > end_time:
-                    end_time = time.time() + 12 * 60 * 60
-                    if self.claim_daily_rewards:
-                        self.claim_rewards()
-                        logger.info(f"Ежедневные награды были собраны.")
-
-                current_energy_balance, max_energy_limit = self.get_energy()
-                logger.info(f"Текущий баланс энергии: {current_energy_balance}")
-
-                if (max_energy_limit - current_energy_balance) < max_energy_limit * 0.25:
-                    logger.info(f"Добыча монет в Hamster Kombat запущена.")
-                    self.tap_tap()
-                    logger.info(f"Добыча монет Hamster Kombat завершёна.")
+                if self.stop_event.is_set():
+                    break
 
                 else:
-                    wait_time = (max_energy_limit - current_energy_balance) * (30 / 100)  # 100 за 30 сек
-                    logger.info(f"Ожидание заполнения энергии: {wait_time / 60} мин.")
-                    end_time = time.time() + wait_time
-                    while time.time() < end_time:
-                        if self.stop_event.is_set():
-                            raise StopIteration
-                        time.sleep(0.1)
+                    if time.time() > end_time:
+                        end_time = time.time() + 12 * 60 * 60
+                        if self.claim_daily_rewards:
+                            self.claim_rewards()
+                            logger.info(f"Ежедневные награды были собраны.")
+
+                    current_energy_balance, max_energy_limit = self.get_energy()
+                    logger.info(f"Текущий баланс энергии: {current_energy_balance}")
+
+                    if (max_energy_limit - current_energy_balance) < max_energy_limit * 0.25:
+                        logger.info(f"Добыча монет в Hamster Kombat запущена.")
+                        self.tap_tap()
+                        logger.info(f"Добыча монет Hamster Kombat завершёна.")
+
+                    else:
+                        wait_time = (max_energy_limit - current_energy_balance) * (30 / 100)  # 100 за 30 сек
+                        logger.info(f"Ожидание заполнения энергии: {wait_time / 60} мин.")
+                        end_time = time.time() + wait_time
+                        while time.time() < end_time:
+                            if self.stop_event.is_set():
+                                break
+                            time.sleep(0.1)
 
             except StopIteration:
                 break
 
-            except (KeyboardInterrupt, NoSuchWindowException):
-                self.stop_event.set()
-                break
-
             except Exception as e:
                 logger.error(f"Поймана ошибка: {e}", exc_info=True)
-                attempts += 1
-                logger.warning(f"Что то пошло не так и пользователь был перезапущен {attempts} раз.")
-                self.driver.refresh()
-                self.switch_to_iframe()
 
         self.close()
 

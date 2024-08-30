@@ -108,45 +108,40 @@ class MainPage(ctk.CTkFrame):
         self.hamster_farm.use_energy_boosts = bool(self.checkbox_frame.get()["Use Energy Boosts"])
 
         if not self.hamster_farm.platform:
-            self.error_event(f"Platform is empty!")
-            return False
+            return f"Platform is empty!"
 
         if not self.hamster_farm.timeout:
-            self.error_event(f"Timeout is empty!")
-            return False
+            return f"Timeout is empty!"
 
         if not self.hamster_farm.num_clicks:
-            self.error_event(f"Num Clicks is empty!")
-            return False
+            return f"Num Clicks is empty!"
 
         if not self.hamster_farm.users:
-            self.error_event(f"Telegram Account List is empty!")
-            return False
-
-        return True
+            return f"Telegram Account List is empty!"
 
     def toggle_farming_event(self):
 
         def stop_farming():
-            self.is_farming = False
             self.hamster_farm.deactivate_farm()
             self.after(0, lambda: self.launch_button.configure(text="Start Farming", fg_color="green", state="normal"))
 
         def start_farming():
-            self.is_farming = True
             self.hamster_farm.activate_farm()
             self.after(0, lambda: self.launch_button.configure(text="Stop Farming", fg_color="red", state="normal"))
 
         if self.is_farming:
+            self.is_farming = False
             self.launch_button.configure(text="Don't interrupt", fg_color="gray", state="disabled")
             threading.Thread(name="Stop Farming", target=stop_farming).start()
 
-        elif self.update_farm_parameters():
-            self.launch_button.configure(text="Don't interrupt", fg_color="gray", state="disabled")
-            threading.Thread(name="Start Farming", target=start_farming).start()
-
         else:
-            pass
+            update_massage = self.update_farm_parameters()
+            if update_massage is None:
+                self.is_farming = True
+                self.launch_button.configure(text="Don't interrupt", fg_color="gray", state="disabled")
+                threading.Thread(name="Start Farming", target=start_farming).start()
+            else:
+                self.error_event(f"Telegram Account List is empty!")
 
     @staticmethod
     def appearance_mode_event(mode: str):

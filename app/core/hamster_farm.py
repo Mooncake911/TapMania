@@ -1,5 +1,6 @@
 from logging_config import logger
 
+import time
 import threading
 from typing import List, Tuple
 from dataclasses import dataclass, field
@@ -41,11 +42,13 @@ class HamsterFarm:
             for thread in self.threads:
                 thread.start()
 
+            time.sleep(len(self.threads) * 1)
+
             logger.info(f"Программа Hamster Kombat Farm запущена.")
 
         except Exception as e:
+            logger.info(f"Поймана ошибка в hamster_farm.py: {e}")
             self.deactivate_farm()
-            logger.info(f"Поймана ошибка: {e}")
 
     def deactivate_farm(self):
         try:
@@ -58,7 +61,7 @@ class HamsterFarm:
             logger.info(f"Программа Hamster Kombat Farm завершена.")
 
         except Exception as e:
-            logger.info(f"Поймана ошибка: {e}")
+            logger.info(f"Поймана ошибка в hamster_farm.py: {e}")
 
 
 if __name__ == '__main__':
