@@ -25,7 +25,6 @@ base_path = os.path.dirname(__file__)
 
 
 class HamsterHelper(BaseHelper):
-    @BaseHelper.handle_exceptions
     def __init__(self, name, src, platform, timeout, num_clicks, headless,
                  claim_daily_rewards, use_energy_boosts):
         super().__init__(headless=headless)
