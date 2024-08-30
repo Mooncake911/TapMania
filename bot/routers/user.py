@@ -26,6 +26,7 @@ def is_valid_string(s):
 
 
 client = Client(YOOMONEY_ACCESS_TOKEN)
+download_url = "https://github.com/Mooncake911/Hamster-Kombat-Farm/releases"
 
 
 def make_payment_link(order_id):
@@ -48,7 +49,6 @@ class PaymentState(StatesGroup):
 
 
 class Form(StatesGroup):
-    # login = State()
     password = State()
 
 
@@ -63,12 +63,13 @@ async def command_start(message: types.Message, state: FSMContext) -> None:
         quick_pay = make_payment_link(order_id)
         await message.answer(f"Hello, {html.bold(message.from_user.full_name)}!\n"
                              f"You will get access after payment:\n",
-                             reply_markup=await kb.new_user_keyboard(bay_url=quick_pay.redirected_url))
+                             reply_markup=await kb.new_user_keyboard(bay_url=quick_pay.redirected_url,
+                                                                     download_url=download_url))
     else:
         await message.answer(f"Your access data:\n"
                              f"Login: {user_id}\n"
                              f"Password: {user_data.get('password')}\n",
-                             reply_markup=await kb.old_user_keyboard())
+                             reply_markup=await kb.old_user_keyboard(download_url=download_url))
 
 
 @user_router.callback_query(F.data == 'check_payment')
@@ -88,27 +89,14 @@ async def check_payment_status(callback: types.CallbackQuery, state: FSMContext)
             redis_manager.set_user_data(telegram_id=user_id, password=password)
             await callback.message.answer(f"The payment was successful! 🙌\n"
                                           f"Login: {user_id}\n"
-                                          f"Password: {password}\n", reply_markup=await kb.old_user_keyboard())
+                                          f"Password: {password}\n",
+                                          reply_markup=await kb.old_user_keyboard(download_url=download_url))
             break
     else:
         await callback.message.answer(
             "Sorry, the payment has not been completed yet 🔄.\n"
-            "Please try again later or contact with our support: @Vadim_noodle.")
-
-
-# @user_router.callback_query(F.data == "change_login")
-# async def change_login(callback: types.CallbackQuery, state: FSMContext) -> None:
-#     await state.set_state(Form.login)
-#     await callback.message.answer(f"Enter your new login:")
-
-
-# @user_router.message(Form.login)
-# async def process_new_login(message: types.Message, state: FSMContext) -> None:
-#     user_id = message.from_user.id
-#     username = message.text
-#     redis_manager.update_user_username(telegram_id=user_id, username=username)
-#     await command_start(message, state)
-#     await state.clear()
+            "Please try again later or use /start command.\n"
+            "If you are still have problems connect with our support: @Vadim_noodle.")
 
 
 @user_router.callback_query(F.data == "change_password")
@@ -129,6 +117,12 @@ async def process_new_password(message: types.Message, state: FSMContext) -> Non
         await state.set_state(Form.password)
         await message.answer(f"Please, use only numbers, uppercase and lowercase English letters.\n"
                              f"But your password is: {password}.")
+
+
+@user_router.message(Command("download"))
+async def download_handler(message: types.Message) -> None:
+    await message.answer(f"Please visit GitHub to download the program:\n"
+                         f"{download_url}", reply_markup=types.ReplyKeyboardRemove())
 
 
 @user_router.message(Command("cancel"))

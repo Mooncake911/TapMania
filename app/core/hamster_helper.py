@@ -21,24 +21,24 @@ from selenium.common.exceptions import (NoSuchElementException,
 
 from .base_helper import BaseHelper
 
-
 base_path = os.path.dirname(__file__)
 
 
 class HamsterHelper(BaseHelper):
     @BaseHelper.handle_exceptions
-    def __init__(self, name, src, platform, timeout, num_clicks, headless, claim_daily_rewards):
+    def __init__(self, name, src, platform, timeout, num_clicks, headless,
+                 claim_daily_rewards, use_energy_boosts):
         super().__init__(headless=headless)
         self.stop_event = threading.Event()
         self.base_url = self.rewrite_html(name, src, platform)
         self.timeout = timeout
         self.num_clicks = num_clicks
         self.claim_daily_rewards = claim_daily_rewards
+        self.use_energy_boosts = use_energy_boosts
 
         if self.base_url:
             self.driver.get(self.base_url)
             self.driver.set_window_rect(width=300, height=800)
-            self.switch_to_iframe()
         else:
             self.stop_event.set()
             logger.error(f'Для пользователя [{name}] неверно указан src: {src}')
@@ -48,8 +48,33 @@ class HamsterHelper(BaseHelper):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             if self.stop_event.is_set():
-                return
-            return func(self, *args, **kwargs)
+                raise StopIteration
+
+            attempts = 0
+            max_attempts = 3
+
+            while not self.stop_event.is_set() and attempts < max_attempts:
+                try:
+                    return func(self, *args, **kwargs)
+
+                except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException,
+                        StaleElementReferenceException):
+                    attempts += 1
+
+                except NoSuchElementException as e:
+                    if attempts == max_attempts:
+                        logger.error(f"Элемент не был найден на странице.\n{e}", exc_info=True)
+
+                except StopIteration:
+                    break
+
+                except (KeyboardInterrupt, NoSuchWindowException):
+                    self.stop_event.set()
+                    break
+
+                except Exception as e:
+                    logger.error(f"Неизвестная ошибка.\n{e}", exc_info=True)
+                    break
 
         return wrapper
 
@@ -83,10 +108,15 @@ class HamsterHelper(BaseHelper):
             return html_user_path
 
     @staticmethod
+    def scroll_page(driver):
+        time.sleep(2)
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
+
+    @staticmethod
     def block_sites(driver, blocked_urls: list):
         """ Заблокировать переход на список сайтов. """
         blocked_urls_script = ", ".join(f"'{url}'" for url in blocked_urls)
-
         script = f"""
                     (function() {{
                         var originalOpen = window.open;
@@ -103,10 +133,11 @@ class HamsterHelper(BaseHelper):
                     }})();
                 """
 
+        time.sleep(2)
         driver.execute_script(script)
+        time.sleep(2)
 
     @check_stop_event
-    @BaseHelper.handle_exceptions
     def switch_to_iframe(self):
         """ Переключится в iframe хомяка. """
         iframe = WebDriverWait(self.driver, self.timeout + 30).until(
@@ -122,44 +153,38 @@ class HamsterHelper(BaseHelper):
         logger.info(f"Успешный вход в Hamster Kombat {hamster_username}!")
 
     @check_stop_event
-    @BaseHelper.handle_exceptions
-    def exchange_or_level_window(self):
-        """ Всплывающее окно при получении дохода от биржи при повышении уровня. """
-        try:
-            exchange_button = WebDriverWait(self.driver, self.timeout).until(
-                EC.element_to_be_clickable(
-                    (By.CLASS_NAME, 'bottom-sheet-button.button.button-primary.button-large'))
-            )
-            exchange_button.click()
-
-            logger.info(f"Биржа принесла доход или повысился уровень.")
-            return True
-
-        except TimeoutException:
-            pass
+    def popup_window_button_large(self):
+        """ Всплывающее окно при получении дохода от биржи или при повышении уровня. """
+        large_button = WebDriverWait(self.driver, self.timeout).until(
+            EC.element_to_be_clickable(
+                (By.CLASS_NAME, 'bottom-sheet-button.button.button-primary.button-large'))
+        )
+        large_button.click()
 
     @check_stop_event
-    @BaseHelper.handle_exceptions
+    def popup_window_button_close(self):
+        """ Закрытие всплывающего окна. """
+        close_button = WebDriverWait(self.driver, self.timeout / 3).until(
+            EC.element_to_be_clickable(
+                (By.CLASS_NAME, 'bottom-sheet-close'))
+        )
+        close_button.click()
+
+    @check_stop_event
     def back_to_main_page(self):
         """ Возвращаемся на главую страницу. """
-        try:
-            bar_buttons = WebDriverWait(self.driver, self.timeout).until(
-                EC.presence_of_all_elements_located(
-                    (By.CSS_SELECTOR, '.app-bar-item.no-select'))
-            )
-            bar_buttons[0].click()
-
-        except TimeoutException:
-            pass
+        self.scroll_page(self.driver)
+        bar_buttons = WebDriverWait(self.driver, self.timeout).until(
+            EC.presence_of_all_elements_located(
+                (By.CSS_SELECTOR, '.app-bar-item.no-select'))
+        )
+        bar_buttons[0].click()
 
     @check_stop_event
-    @BaseHelper.handle_exceptions
-    def use_energy_boost(self):
+    def use_boosts(self):
         """ Используем бустеры энергии если они есть. """
         try:
-            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2)
-
+            self.scroll_page(self.driver)
             boosts_button = WebDriverWait(self.driver, self.timeout).until(
                 EC.presence_of_element_located(
                     (By.CLASS_NAME, 'user-tap-boost'))
@@ -192,44 +217,33 @@ class HamsterHelper(BaseHelper):
             return False
 
     @check_stop_event
-    @BaseHelper.handle_exceptions
     def tap_tap(self):
         """ Начать нажимать по кнопке. """
-        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
-
+        self.scroll_page(self.driver)
         hamster_button = WebDriverWait(self.driver, self.timeout).until(
             EC.element_to_be_clickable(
                 (By.CLASS_NAME, 'user-tap-button.button'))
         )
 
-        logger.info(f"Добыча монет в Hamster Kombat запущена.")
-
         for _ in range(self.num_clicks):
-            try:
-                if self.stop_event.is_set():
-                    break
-                else:
-                    hamster_button.click()
-                    time.sleep(random.randint(1, 10) / 100)
+            if self.stop_event.is_set():
+                return StopIteration
+            else:
+                hamster_button.click()
+                time.sleep(random.randint(1, 10) / 100)
 
-            except (ElementNotInteractableException, ElementClickInterceptedException):
-                self.exchange_or_level_window()
-
-        logger.info(f"Добыча монет Hamster Kombat завершёна.")
-
-        if self.use_energy_boost():
+        if self.use_boosts():
             self.tap_tap()
 
     @check_stop_event
-    @BaseHelper.handle_exceptions
     def claim_rewards(self):
         """ Собрать монеты со всех ежедневных активностей. """
-        activities = WebDriverWait(self.driver, self.timeout).until(
+        self.scroll_page(self.driver)
+        bar_buttons = WebDriverWait(self.driver, self.timeout).until(
             EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, '.user-attraction-item, .user-attraction-item.is-completed'))
+                (By.CSS_SELECTOR, '.app-bar-item.no-select'))
         )
-        activities[0].click()
+        bar_buttons[4].click()
 
         self.block_sites(driver=self.driver,
                          blocked_urls=["youtu.be", "youtube.com",
@@ -237,105 +251,107 @@ class HamsterHelper(BaseHelper):
                                        "instagram.com",
                                        "twitter.com", "x.com"])
 
-        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
+        self.scroll_page(self.driver)
+        earn_column = WebDriverWait(self.driver, self.timeout).until(
+            EC.presence_of_all_elements_located(
+                (By.CLASS_NAME, 'earn-column'))
+        )
 
-        try:
-            earn_column = WebDriverWait(self.driver, self.timeout).until(
+        for column in earn_column:
+            earn_items = WebDriverWait(column, self.timeout).until(
                 EC.presence_of_all_elements_located(
-                    (By.CLASS_NAME, 'earn-column'))
+                    (By.CLASS_NAME, 'earn-item'))
             )
 
-            for column in earn_column:
-                earn_items = WebDriverWait(column, self.timeout).until(
-                    EC.presence_of_all_elements_located(
-                        (By.CLASS_NAME, 'earn-item'))
-                )
+            for item in earn_items:
+                try:
+                    item.click()
+                except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
+                    self.scroll_page(self.driver)
+                    item.click()
 
-                for item in earn_items:
-                    if self.stop_event.is_set:
-                        return
+                try:
+                    self.popup_window_button_large()
+                    self.popup_window_button_close()
+                except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
+                    pass
 
-                    try:
-                        item.click()
-                    except ElementClickInterceptedException:
-                        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                        time.sleep(2)
-                        item.click()
-
-                    try:
-                        claim_button = WebDriverWait(self.driver, self.timeout).until(
-                            EC.element_to_be_clickable(
-                                (By.CLASS_NAME, 'bottom-sheet-button.button.button-primary.button-large'))
-                        )
-                        claim_button.click()
-                    except TimeoutException:
-                        pass
-
-                    try:
-                        close_button = WebDriverWait(self.driver, self.timeout).until(
-                            EC.element_to_be_clickable(
-                                (By.CLASS_NAME, 'bottom-sheet-close'))
-                        )
-                        close_button.click()
-                    except TimeoutException:
-                        pass
-
-        finally:
-            self.back_to_main_page()
-            logger.info(f"Ежедневные награды собраны.")
+        self.back_to_main_page()
 
     @check_stop_event
-    @BaseHelper.handle_exceptions
     def play_morse(self):
         """ Пройти ежедневную игру Морзе. """
         pass
 
     @check_stop_event
+    def get_energy(self):
+        """ Получаем текущие значения энергии. """
+        def get_text():
+            self.scroll_page(self.driver)
+            energy_limit_element = WebDriverWait(self.driver, self.timeout).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, 'div.user-tap-energy p'))
+            )
+            text = energy_limit_element.text.strip()
+            return text
+
+        max_attempts = 5
+        attempts = 0
+
+        while attempts < max_attempts:
+            try:
+                energy_limit_text = get_text()
+                if '/' in energy_limit_text:
+                    current_energy_balance, max_energy_limit = energy_limit_text.split('/')
+                    current_energy_balance = int(current_energy_balance.strip())
+                    max_energy_limit = int(max_energy_limit.strip())
+                    return current_energy_balance, max_energy_limit
+                else:
+                    break
+
+            except ValueError:
+                attempts += 1
+
+        return 0, 1000
+
     def start(self):
         """ Начать добывать монеты пока не будет установлено событие остановки. """
         end_time = 0
         attempts = 0
 
+        self.switch_to_iframe()
+        self.popup_window_button_large()
+        logger.info(f"Биржа принесла доход.")
+
         while not self.stop_event.is_set():
             try:
-                self.exchange_or_level_window()
-
-                if self.claim_daily_rewards and time.time() > end_time:
-                    self.claim_rewards()
+                if time.time() > end_time:
                     end_time = time.time() + 12 * 60 * 60
+                    if self.claim_daily_rewards:
+                        self.claim_rewards()
+                        logger.info(f"Ежедневные награды были собраны.")
 
-                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(2)
-
-                energy_limit = WebDriverWait(self.driver, self.timeout).until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, 'div.user-tap-energy p'))
-                )
-                # energy_limit динамически изменяющаяся величина,
-                # которая может быть пустой если потратить всю энергию
-                while not energy_limit.text:
-                    time.sleep(2)
-
-                current_energy_balance, max_energy_limit = energy_limit.text.split('/')
-                current_energy_balance = int(current_energy_balance.strip())
-                max_energy_limit = int(max_energy_limit.strip())
+                current_energy_balance, max_energy_limit = self.get_energy()
                 logger.info(f"Текущий баланс энергии: {current_energy_balance}")
 
-                if current_energy_balance > max_energy_limit - max_energy_limit * 0.25:
+                if (max_energy_limit - current_energy_balance) < max_energy_limit * 0.25:
+                    logger.info(f"Добыча монет в Hamster Kombat запущена.")
                     self.tap_tap()
-                else:
-                    wait_time = time.time() + max_energy_limit * (30 / 100)
-                    while time.time() < wait_time:
-                        if self.stop_event.is_set():
-                            break
-                        time.sleep(1)
+                    logger.info(f"Добыча монет Hamster Kombat завершёна.")
 
-            except NoSuchWindowException:
-                self.stop_event.set()
+                else:
+                    wait_time = (max_energy_limit - current_energy_balance) * (30 / 100)  # 100 за 30 сек
+                    logger.info(f"Ожидание заполнения энергии: {wait_time / 60} мин.")
+                    end_time = time.time() + wait_time
+                    while time.time() < end_time:
+                        if self.stop_event.is_set():
+                            raise StopIteration
+                        time.sleep(0.1)
+
+            except StopIteration:
                 break
 
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, NoSuchWindowException):
                 self.stop_event.set()
                 break
 
@@ -347,6 +363,9 @@ class HamsterHelper(BaseHelper):
                 self.switch_to_iframe()
 
         self.close()
+
+    def stop(self):
+        self.stop_event.set()
 
 
 MORSE_CODE_DICT = {'A': '.-', 'B': '-...',

@@ -15,6 +15,7 @@ class HamsterFarm:
     platform: str = "android"
     headless: bool = False
     claim_daily_rewards: bool = False
+    use_energy_boosts: bool = False
 
     users: List[Tuple[str, str]] = field(default_factory=list)
     threads: List[threading.Thread] = field(default_factory=list)
@@ -25,7 +26,8 @@ class HamsterFarm:
                                    timeout=self.timeout,
                                    num_clicks=self.num_clicks,
                                    headless=self.headless,
-                                   claim_daily_rewards=self.claim_daily_rewards)
+                                   claim_daily_rewards=self.claim_daily_rewards,
+                                   use_energy_boosts=self.use_energy_boosts)
         self.tap_list.append(tap_halper)
         tap_halper.start()
 
@@ -47,8 +49,8 @@ class HamsterFarm:
 
     def deactivate_farm(self):
         try:
-            for tap in self.tap_list:
-                tap.stop_event.set()
+            for tap_halper in self.tap_list:
+                tap_halper.stop()
 
             for thread in self.threads:
                 thread.join(timeout=30)
