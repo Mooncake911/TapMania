@@ -114,7 +114,7 @@ class RedisManager:
             logger.error("Нет подключения к Redis.")
             return False
 
-    def update_user_status(self, telegram_id: str, online_status: Union[int, bool]) -> bool:
+    def update_user_status(self, telegram_id: str, online_status: int) -> bool:
         """
         Метод для обновления статуса пользователя в Redis.
 

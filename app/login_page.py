@@ -113,16 +113,17 @@ class LoginPage(ctk.CTkFrame):
 
             if user_data:
 
-                if int(user_data.get('online_status')) == 1:
+                if int(user_data.get('online_status')) == 2:
                     self.error_event(f"Access was denied due to an open session.\n"
                                      f"If it wasn't you, change your password!\n"
                                      f"@hamsters_farm_bot")
 
-                elif int(user_data.get('online_status')) == 0 and user_data.get('password') == password:
+                elif int(user_data.get('online_status')) < 2 and user_data.get('password') == password:
                     self.parent.show_main_page()
                     self.username = username
                     self.password = password
-                    redis_manager.update_user_status(telegram_id=username, online_status=1)
+                    redis_manager.update_user_status(telegram_id=username,
+                                                     online_status=int(user_data.get('online_status')) + 1)
 
                 else:
                     self.password_attempts += 1

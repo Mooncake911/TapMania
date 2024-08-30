@@ -56,7 +56,7 @@ class HamsterHelper(BaseHelper):
                     else:
                         return func(self, *args, **kwargs)
 
-                except ElementClickInterceptedException:
+                except (ElementClickInterceptedException, ElementNotInteractableException):
                     try:
                         try:
                             self.popup_window_button_large(
@@ -180,21 +180,29 @@ class HamsterHelper(BaseHelper):
 
     def popup_window_button_large(self, massage):
         """ Всплывающее окно. """
-        large_button = WebDriverWait(self.driver, self.timeout).until(
-            EC.element_to_be_clickable(
-                (By.CLASS_NAME, 'bottom-sheet-button.button.button-primary.button-large'))
-        )
-        large_button.click()
-        logger.info(massage)
+        try:
+            large_button = WebDriverWait(self.driver, self.timeout).until(
+                EC.element_to_be_clickable(
+                    (By.CLASS_NAME, 'bottom-sheet-button.button.button-primary.button-large'))
+            )
+            large_button.click()
+            logger.info(massage)
+        except (TimeoutException, StaleElementReferenceException,
+                ElementClickInterceptedException, ElementNotInteractableException):
+            pass
 
     def popup_window_button_close(self, massage):
         """ Закрытие всплывающего окна. """
-        close_button = WebDriverWait(self.driver, self.timeout).until(
-            EC.element_to_be_clickable(
-                (By.CLASS_NAME, 'bottom-sheet-close'))
-        )
-        close_button.click()
-        logger.info(massage)
+        try:
+            close_button = WebDriverWait(self.driver, self.timeout).until(
+                EC.element_to_be_clickable(
+                    (By.CLASS_NAME, 'bottom-sheet-close'))
+            )
+            close_button.click()
+            logger.info(massage)
+        except (TimeoutException, StaleElementReferenceException,
+                ElementClickInterceptedException, ElementNotInteractableException):
+            pass
 
     @check_stop_event
     def app_bar_items(self, index, massage):
@@ -240,7 +248,7 @@ class HamsterHelper(BaseHelper):
             logger.info(f"Был использован бустер энергии.")
             return True
 
-        except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
+        except (TimeoutException,  ElementClickInterceptedException):
             self.app_bar_items(index=0, massage=f"Переход на главную страницу.")
             logger.info(f"Нет доступного бустера энергии.")
             return False
@@ -260,12 +268,12 @@ class HamsterHelper(BaseHelper):
                 try:
                     try:
                         hamster_button.click()
-                    except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
+                    except (TimeoutException, ElementClickInterceptedException):
                         self.scroll_page(self.driver)
                         hamster_button.click()
                     time.sleep(random.randint(1, 10) / 100)
                 except ElementNotInteractableException:
-                    logger.warning(f"Не удалось кликнуть на хомяка.")
+                    logger.warning(f"Не удалось нажать на хомяка.")
                     continue
             else:
                 raise StopIteration
@@ -304,20 +312,17 @@ class HamsterHelper(BaseHelper):
                 # Проходимся по всем элементам в колонке
                 if not self.stop_event.is_set():
                     try:
-                        item.click()
-                    except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
-                        self.scroll_page(self.driver)
-                        item.click()
+                        try:
+                            item.click()
+                        except (TimeoutException, ElementClickInterceptedException):
+                            self.scroll_page(self.driver)
+                            item.click()
+                    except ElementNotInteractableException:
+                        logger.warning(f"Задание не выполнено.")
+                        continue
 
-                    try:
-                        self.popup_window_button_large(massage=f"Задание выполнено.")
-                    except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
-                        pass
-
-                    try:
-                        self.popup_window_button_close(massage=f"Задание выполнено.")
-                    except (TimeoutException, ElementClickInterceptedException, ElementNotInteractableException):
-                        pass
+                    self.popup_window_button_large(massage=f"Задание выполнено.")
+                    self.popup_window_button_close(massage=f"Задание выполнено.")
                 else:
                     raise StopIteration
 

@@ -42,7 +42,7 @@ class HamsterFarm:
             for thread in self.threads:
                 thread.start()
 
-            time.sleep(len(self.threads) * 1)
+            time.sleep(len(self.threads) * 1.5)
 
             logger.info(f"Программа Hamster Kombat Farm запущена.")
 
@@ -54,6 +54,7 @@ class HamsterFarm:
         try:
             for tap_halper in self.tap_list:
                 tap_halper.stop()
+                tap_halper.close()
 
             for thread in self.threads:
                 thread.join(timeout=30)
