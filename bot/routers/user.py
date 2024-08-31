@@ -74,7 +74,7 @@ async def command_start(message: types.Message, state: FSMContext) -> None:
 
 @user_router.callback_query(F.data == 'check_payment')
 async def check_payment_status(callback: types.CallbackQuery, state: FSMContext):
-    user_id = callback.message.from_user.id
+    user_id = callback.from_user.id
     password = generate_password()
     redis_manager.set_user_data(telegram_id=user_id, password=password)
     await callback.message.answer(f"The payment was successful! 🙌\n"
@@ -92,7 +92,7 @@ async def check_payment_status(callback: types.CallbackQuery, state: FSMContext)
     # operations = client.operation_history(label=order_id)
     # for operation in operations.operations:
     #     if operation.status == "success":
-    #         user_id = callback.message.from_user.id
+    #         user_id = callback.from_user.id
     #         password = generate_password()
     #         redis_manager.set_user_data(telegram_id=user_id, password=password)
     #         await callback.message.answer(f"The payment was successful! 🙌\n"
