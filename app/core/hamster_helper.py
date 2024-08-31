@@ -47,6 +47,7 @@ class HamsterHelper(BaseHelper):
     def check_stop_event(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
+            self: HamsterHelper
             attempts = 0
             max_attempts = 3
 
@@ -56,7 +57,7 @@ class HamsterHelper(BaseHelper):
 
                 except (ElementClickInterceptedException, ElementNotInteractableException):
                     self.popup_window_button_large(massage=f"Появление всплывающего окна, возможно повысился уровень.")
-                    self.pupup_window_button_close(massage=f"Закрытие всплывающего окна, возможно повысился уровень.")
+                    self.popup_window_button_close(massage=f"Закрытие всплывающего окна, возможно повысился уровень.")
 
                 except (TimeoutException, StaleElementReferenceException):
                     attempts += 1
@@ -203,15 +204,19 @@ class HamsterHelper(BaseHelper):
     def app_bar_items(self, index, massage=None):
         """ Переход на элемент в нижнем меню. """
         self.scroll_page(self.driver)
+        try:
+            bar_buttons = WebDriverWait(self.driver, self.timeout).until(
+                EC.presence_of_all_elements_located(
+                    (By.CSS_SELECTOR, '.app-bar-item.no-select'))
+            )
+            bar_buttons[index].click()
 
-        bar_buttons = WebDriverWait(self.driver, self.timeout).until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, '.app-bar-item.no-select'))
-        )
-        bar_buttons[index].click()
+            if massage:
+                logger.info(massage)
 
-        if massage:
-            logger.info(massage)
+        except (TimeoutException, StaleElementReferenceException,
+                ElementClickInterceptedException, ElementNotInteractableException):
+            pass
 
     @check_stop_event
     def use_boosts(self):
