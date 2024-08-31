@@ -74,29 +74,37 @@ async def command_start(message: types.Message, state: FSMContext) -> None:
 
 @user_router.callback_query(F.data == 'check_payment')
 async def check_payment_status(callback: types.CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    order_id = data.get('order_id')
+    user_id = callback.message.from_user.id
+    password = generate_password()
+    redis_manager.set_user_data(telegram_id=user_id, password=password)
+    await callback.message.answer(f"The payment was successful! 🙌\n"
+                                  f"Login: {user_id}\n"
+                                  f"Password: {password}\n",
+                                  reply_markup=await kb.old_user_keyboard(download_url=download_url))
 
-    if not order_id:
-        await callback.message.answer("No payment information found. Please /start again.")
-        return
-
-    operations = client.operation_history(label=order_id)
-    for operation in operations.operations:
-        if operation.status == "success":
-            user_id = callback.message.from_user.id
-            password = generate_password()
-            redis_manager.set_user_data(telegram_id=user_id, password=password)
-            await callback.message.answer(f"The payment was successful! 🙌\n"
-                                          f"Login: {user_id}\n"
-                                          f"Password: {password}\n",
-                                          reply_markup=await kb.old_user_keyboard(download_url=download_url))
-            break
-    else:
-        await callback.message.answer(
-            "Sorry, the payment has not been completed yet 🔄.\n"
-            "Please try again later or use /start command.\n"
-            "If you are still have problems connect with our support: @Vadim_noodle.")
+    # data = await state.get_data()
+    # order_id = data.get('order_id')
+    #
+    # if not order_id:
+    #     await callback.message.answer("No payment information found. Please /start again.")
+    #     return
+    #
+    # operations = client.operation_history(label=order_id)
+    # for operation in operations.operations:
+    #     if operation.status == "success":
+    #         user_id = callback.message.from_user.id
+    #         password = generate_password()
+    #         redis_manager.set_user_data(telegram_id=user_id, password=password)
+    #         await callback.message.answer(f"The payment was successful! 🙌\n"
+    #                                       f"Login: {user_id}\n"
+    #                                       f"Password: {password}\n",
+    #                                       reply_markup=await kb.old_user_keyboard(download_url=download_url))
+    #         break
+    # else:
+    #     await callback.message.answer(
+    #         "Sorry, the payment has not been completed yet 🔄.\n"
+    #         "Please try again later or use /start command.\n"
+    #         "If you are still have problems connect with our support: @Vadim_noodle.")
 
 
 @user_router.callback_query(F.data == "change_password")

@@ -223,14 +223,13 @@ class HamsterHelper(BaseHelper):
         """ Используем бустеры энергии если они есть. """
         self.app_bar_items(index=0)
         self.scroll_page(self.driver)
-
-        boosts_button = WebDriverWait(self.driver, self.timeout).until(
-            EC.presence_of_element_located(
-                (By.CLASS_NAME, 'user-tap-boost'))
-        )
-        boosts_button.click()
-
         try:
+            boosts_button = WebDriverWait(self.driver, self.timeout).until(
+                EC.presence_of_element_located(
+                    (By.CLASS_NAME, 'user-tap-boost'))
+            )
+            boosts_button.click()
+
             boosts_columns = WebDriverWait(self.driver, self.timeout).until(
                 EC.presence_of_all_elements_located(
                     (By.CLASS_NAME, 'boost-column'))
@@ -243,11 +242,11 @@ class HamsterHelper(BaseHelper):
             boosts.click()
 
             self.popup_window_button_large(massage=f"Был использован бустер энергии.")
-            return True
+            self.popup_window_button_close(massage=f"Не был использован бустер энергии.")
 
-        except (TimeoutException, ElementClickInterceptedException):
-            self.popup_window_button_close(massage=f"Нет доступного бустера энергии.")
-            return False
+        except (TimeoutException, StaleElementReferenceException,
+                ElementClickInterceptedException, ElementNotInteractableException):
+            pass
 
     @check_stop_event
     def tap_tap(self):
@@ -275,9 +274,6 @@ class HamsterHelper(BaseHelper):
                     continue
             else:
                 raise StopIteration
-
-        if self.use_boosts():
-            self.tap_tap()
 
     @check_stop_event
     def claim_rewards(self):
@@ -370,7 +366,7 @@ class HamsterHelper(BaseHelper):
             try:
                 # Полу-ежедневный цикл активностей
                 if time.time() > daily_cycle_time:
-                    daily_cycle_time = time.time() + 12 * 60 * 60
+                    daily_cycle_time = time.time() + 2 * 60 * 60
                     if self.claim_daily_rewards:
                         self.claim_rewards()
                         logger.info(f"Ежедневные награды были собраны.")
@@ -382,6 +378,8 @@ class HamsterHelper(BaseHelper):
                     logger.info(f"Добыча монет в Hamster Kombat запущена.")
                     self.tap_tap()
                     logger.info(f"Добыча монет Hamster Kombat завершёна.")
+                    if self.use_energy_boosts:
+                        self.use_boosts()
 
                 else:
                     wait_time = (max_energy_limit - current_energy_balance) * (30 / 100)  # 100 за 30 сек

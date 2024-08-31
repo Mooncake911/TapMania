@@ -4,7 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 async def new_user_keyboard(bay_url, download_url):
     builder = InlineKeyboardBuilder()
 
-    builder.button(text="Buy access to the program ✅", url=bay_url)
+    # builder.button(text="Buy access to the program ✅", url=bay_url)
     builder.button(text="Download the program 🐹", url=download_url)
     builder.button(text="Already paid, get access!", callback_data="check_payment")
 
