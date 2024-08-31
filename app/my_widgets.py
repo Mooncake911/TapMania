@@ -121,6 +121,9 @@ class MyInputManagerFrame(ctk.CTkFrame):
         return values
 
     def set(self, values: List[Union[Tuple[str, str], List[str]]]):
+        for name_field, value_field, frame in self.input_fields:
+            self.input_fields.remove((name_field, value_field, frame))
+            frame.destroy()
         for name, value in values:
             self.add_input_field()
             name_field, value_field, _ = self.input_fields[-1]
