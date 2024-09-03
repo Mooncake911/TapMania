@@ -3,6 +3,7 @@ from logging_config import logger
 import os
 import re
 import time
+import copy
 import random
 import threading
 from functools import wraps
@@ -125,14 +126,14 @@ class HamsterHelper(BaseHelper):
 
             return html_user_path
 
-    @staticmethod
-    def scroll_page(driver):
+    @check_stop_event
+    def scroll_page(self):
         time.sleep(2)
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(2)
 
-    @staticmethod
-    def block_sites(driver, blocked_urls: list):
+    @check_stop_event
+    def block_sites(self, blocked_urls: list):
         """ Заблокировать переход на список сайтов. """
         blocked_urls_script = ", ".join(f"'{url}'" for url in blocked_urls)
         script = f"""
@@ -152,7 +153,7 @@ class HamsterHelper(BaseHelper):
                 """
 
         time.sleep(2)
-        driver.execute_script(script)
+        self.driver.execute_script(script)
         time.sleep(2)
 
     @check_stop_event
@@ -207,7 +208,7 @@ class HamsterHelper(BaseHelper):
     @check_stop_event
     def app_bar_items(self, index, massage=None):
         """ Переход на элемент в нижнем меню. """
-        self.scroll_page(self.driver)
+        self.scroll_page()
         try:
             bar_buttons = WebDriverWait(self.driver, self.timeout).until(
                 EC.presence_of_all_elements_located(
@@ -226,7 +227,7 @@ class HamsterHelper(BaseHelper):
     def use_boosts(self):
         """ Используем бустеры энергии если они есть. """
         self.app_bar_items(index=0)
-        self.scroll_page(self.driver)
+        self.scroll_page()
         try:
             boosts_button = WebDriverWait(self.driver, self.timeout).until(
                 EC.presence_of_element_located(
@@ -256,7 +257,7 @@ class HamsterHelper(BaseHelper):
     def tap_tap(self):
         """ Начать нажимать по кнопке. """
         self.app_bar_items(index=0)
-        self.scroll_page(self.driver)
+        self.scroll_page()
 
         hamster_button = WebDriverWait(self.driver, self.timeout).until(
             EC.element_to_be_clickable(
@@ -270,7 +271,7 @@ class HamsterHelper(BaseHelper):
                     try:
                         hamster_button.click()
                     except (TimeoutException, ElementClickInterceptedException):
-                        self.scroll_page(self.driver)
+                        self.scroll_page()
                         hamster_button.click()
                     time.sleep(random.randint(1, 10) / 100)
                 except ElementNotInteractableException:
@@ -283,10 +284,9 @@ class HamsterHelper(BaseHelper):
     def claim_rewards(self):
         """ Собрать монеты со всех ежедневных активностей. """
         self.app_bar_items(index=4)
-        self.scroll_page(self.driver)
+        self.scroll_page()
 
-        self.block_sites(driver=self.driver,
-                         blocked_urls=["youtu.be", "youtube.com",
+        self.block_sites(blocked_urls=["youtu.be", "youtube.com",
                                        "facebook.com",
                                        "instagram.com",
                                        "twitter.com", "x.com"])
@@ -313,7 +313,7 @@ class HamsterHelper(BaseHelper):
                         try:
                             item.click()
                         except (TimeoutException, ElementClickInterceptedException):
-                            self.scroll_page(self.driver)
+                            self.scroll_page()
                             item.click()
                     except ElementNotInteractableException:
                         logger.warning(f"The daily task was failed.")
@@ -333,7 +333,7 @@ class HamsterHelper(BaseHelper):
     def get_energy(self):
         """ Получаем текущие значения энергии. """
         self.app_bar_items(index=0)
-        self.scroll_page(self.driver)
+        self.scroll_page()
 
         max_attempts = 5
         attempts = 0
@@ -344,7 +344,7 @@ class HamsterHelper(BaseHelper):
                     EC.presence_of_element_located(
                         (By.CSS_SELECTOR, 'div.user-tap-energy p'))
                 )
-                energy_limit_text = energy_limit_element.text.strip()
+                energy_limit_text = copy.deepcopy(energy_limit_element.text.strip())
 
                 if '/' in energy_limit_text:
                     current_energy_balance, max_energy_limit = energy_limit_text.split('/')
@@ -355,7 +355,7 @@ class HamsterHelper(BaseHelper):
                     break
 
             except ElementNotInteractableException:
-                self.scroll_page(self.driver)
+                self.scroll_page()
 
             except TypeError:
                 attempts += 1
