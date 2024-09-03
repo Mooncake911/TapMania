@@ -1,25 +1,16 @@
-import os
 import sys
 
 import time
 import logging
 
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
-
 
 # HamsterFarm
 YANDEX_USERNAME = "username"
 TAP_COUNT = 4000
-
 
 # Logging settings
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -40,8 +31,9 @@ class TapHelper:
 
     def _init_driver(self, *args, **kwargs):
         try:
-            options = Options()
-            # options.add_argument("--headless=new")
+            service = webdriver.ChromeService()
+            options = webdriver.ChromeOptions()
+            # options.add_argument("--headless=new") или options.add_argument("--headless=old")
             # options.add_argument("--disable-css")  # отключаем css
             # # Отключение автоматического загрузчика изображений
             # options.add_argument("--disable-extensions")
@@ -49,7 +41,6 @@ class TapHelper:
             # # Отключаем защиту браузера
             # options.add_argument("--disable-web-security")
             # options.add_argument("--allow-running-insecure-content")
-            service = Service(executable_path=self.driver_path)
             self.driver = webdriver.Chrome(options=options, service=service)
             logger.info(f"Chrome driver успешно инициализирован.")
             self.driver.get(self.base_url)

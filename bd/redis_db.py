@@ -29,10 +29,10 @@ class RedisManager:
         """
         try:
             self.db = Redis(host=REDIS_HOST, password=REDIS_PASSWORD, port=REDIS_PORT, db=db, decode_responses=True)
-            logger.info("Успешное подключение к Redis.")
+            logger.info("Successfully connected to Redis.")
         except Exception as e:
             self.db = None
-            logger.error(f"Ошибка подключения к Redis: {e}")
+            logger.error(f"Error connecting to Redis: {e}")
 
     def keys(self):
         return self.db.keys('*')
@@ -56,13 +56,13 @@ class RedisManager:
                     'online_status': str(int(online_status))
                 }
                 self.db.hset(key, mapping=user_data)
-                logger.info(f"Данные пользователя с Telegram ID {telegram_id} успешно добавлены/обновлены в Redis.")
+                logger.info(f"User data with Telegram ID {telegram_id} has been successfully added/updated in Redis.")
                 return True
             except Exception as e:
-                logger.error(f"Ошибка добавления данных пользователя в Redis: {e}")
+                logger.error(f"Error adding user data to Redis: {e}")
                 return False
         else:
-            logger.error("Нет подключения к Redis.")
+            logger.error("No connection to Redis.")
             return False
 
     def get_user_data(self, telegram_id: str) -> Optional[dict]:
@@ -79,16 +79,16 @@ class RedisManager:
                 key = f"user:{telegram_id}"
                 data = self.db.hgetall(key)
                 if data:
-                    logger.info(f"Данные пользователя с Telegram ID {telegram_id} успешно извлечены из Redis.")
+                    logger.info(f"User data with Telegram ID {telegram_id} was successfully retrieved from Redis.")
                     return data
                 else:
-                    logger.info(f"Данные по Telegram ID {telegram_id} не найдены.")
+                    logger.info(f"Data for Telegram ID {telegram_id} not found.")
                     return None
             except Exception as e:
-                logger.error(f"Ошибка получения данных пользователя из Redis: {e}")
+                logger.error(f"Error getting user data from Redis: {e}")
                 return None
         else:
-            logger.error("Нет подключения к Redis.")
+            logger.error("No connection to Redis.")
             return None
 
     def update_user_password(self, telegram_id: str, password: str) -> bool:
@@ -105,13 +105,13 @@ class RedisManager:
             try:
                 key = f"user:{telegram_id}"
                 self.db.hset(key, mapping={'password': str(password)})
-                logger.info(f"Пароль пользователя с Telegram ID {telegram_id} успешно обновлен в Redis.")
+                logger.info(f"The password of the user with Telegram ID {telegram_id} was successfully updated in Redis.")
                 return True
             except Exception as e:
-                logger.error(f"Ошибка обновления пароля пользователя в Redis: {e}")
+                logger.error(f"Error updating user password in Redis: {e}")
                 return False
         else:
-            logger.error("Нет подключения к Redis.")
+            logger.error("No connection to Redis.")
             return False
 
     def update_user_status(self, telegram_id: str, online_status: int) -> bool:
@@ -128,13 +128,13 @@ class RedisManager:
             try:
                 key = f"user:{telegram_id}"
                 self.db.hset(key, mapping={'online_status': str(int(online_status))})
-                logger.info(f"Статус пользователя с Telegram ID {telegram_id} успешно обновлен в Redis.")
+                logger.info(f"The status of the user with Telegram ID {telegram_id} was successfully updated in Redis.")
                 return True
             except Exception as e:
-                logger.error(f"Ошибка обновления статуса пользователя в Redis: {e}")
+                logger.error(f"Error updating user status in Redis: {e}")
                 return False
         else:
-            logger.error("Нет подключения к Redis.")
+            logger.error("No connection to Redis.")
             return False
 
     def delete_user_data(self, telegram_id: str) -> bool:
@@ -151,23 +151,22 @@ class RedisManager:
                 key = f"user:{telegram_id}"
                 result = self.db.delete(key)
                 if result:
-                    logger.info(f"Данные пользователя с Telegram ID {telegram_id} успешно удалены из Redis.")
+                    logger.info(f"User data with Telegram ID {telegram_id} has been successfully deleted from Redis.")
                     return True
                 else:
-                    logger.warning(
-                        f"Ошибка удаления данных пользователя из Redis. По Telegram ID {telegram_id} нет данных.")
+                    logger.warning(f"Error deleting user data from Redis. There is no data for Telegram ID {telegram_id}.")
                     return False
             except Exception as e:
-                logger.error(f"Ошибка удаления данных пользователя из Redis: {e}")
+                logger.error(f"Error deleting user data from Redis: {e}")
                 return False
         else:
-            logger.error("Нет подключения к Redis.")
+            logger.error("No connection to Redis.")
             return False
 
     def close(self):
         if self.db:
             self.db.close()
-            logger.info("Redis был закрыт.")
+            logger.info("Redis has been closed.")
 
 
 redis_manager = RedisManager()

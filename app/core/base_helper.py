@@ -10,7 +10,7 @@ from .my_driver import get_web_driver
 class BaseHelper(object):
     def __init__(self, headless):
         self.driver = get_web_driver(headless=headless)
-        logger.info(f"WebDriver успешно инициализирован.")
+        logger.info(f"WebDriver has been successfully initialized.")
 
     def close(self):
         """ Остановка Webdriver. """
@@ -18,10 +18,10 @@ class BaseHelper(object):
             if self.driver:
                 self.driver.close()
                 self.driver.quit()
-                logger.info(f"WebDriver был остановлен.")
+                logger.info(f"WebDriver has been stopped.")
 
         except WebDriverException:
-            logger.info(f"Окно браузера было закрыто, до того как был был остановлен WebDriver.")
+            logger.info(f"The browser window was closed before WebDriver was stopped.")
 
         finally:
             sys.exit(0)

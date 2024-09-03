@@ -37,11 +37,10 @@ class HamsterHelper(BaseHelper):
 
         if self.base_url:
             self.driver.get(self.base_url)
-            self.driver.set_window_rect(width=300, height=800)
             self.switch_to_iframe()
         else:
             self.stop_event.set()
-            logger.error(f'Для пользователя [{name}] неверно указан src: {src}')
+            logger.error(f'The src specified for user [{name}] is incorrect: {src}.')
 
     @staticmethod
     def check_stop_event(func):
@@ -56,38 +55,43 @@ class HamsterHelper(BaseHelper):
                     return func(self, *args, **kwargs)
 
                 except (ElementClickInterceptedException, ElementNotInteractableException):
-                    self.popup_window_button_large(massage=f"Появление всплывающего окна, возможно повысился уровень.")
-                    self.popup_window_button_close(massage=f"Закрытие всплывающего окна, возможно повысился уровень.")
+                    self.popup_window_button_large(massage=f"Press the pop-up window's button.")
+                    self.popup_window_button_close(massage=f"Close the pop-up window.")
 
                 except (TimeoutException, StaleElementReferenceException):
                     attempts += 1
-                    logger.warning(f"Что-то пошло не так: {attempts}-ая попытка найти элемент.", exc_info=True)
+                    logger.warning(f"Something went wrong: {attempts}th attempt to find an element.", exc_info=True)
 
                 except NoSuchElementException as e:
-                    logger.warning(f"Элемент не был найден на странице.\n{e}", exc_info=True)
+                    logger.warning(f"The element was not found on the page: {e}", exc_info=True)
 
                 except NoSuchWindowException:
-                    logger.warning(f"Было закрыто окно браузера.")
+                    logger.warning(f"The browser window was closed.")
                     break
 
                 except (ConnectionError, WebDriverException):
                     self.driver.refresh()
                     self.switch_to_iframe()
-                    logger.warning(f"WebDriver был перезапущен, возможно произошла проблема с соединением.")
+                    logger.warning(f"WebDriver has been restarted and there may be a connection problem.")
 
                 except StopIteration:
-                    logger.info(f"Вызвана остановка программы.")
+                    logger.info(f"The program has been stopped.")
                     break
 
                 except KeyboardInterrupt:
-                    logger.warning(f"Было принудительное прерывание программы или закрытие окна.")
+                    logger.warning(f"There was a forced program interruption or window closing.")
                     break
 
                 except Exception as e:
-                    logger.error(f"Неизвестная ошибка.\n{e}", exc_info=True)
+                    logger.error(f"Unknown error: {e}", exc_info=True)
                     break
 
-            self.close()
+            if attempts >= max_attempts:
+                self.driver.refresh()
+                self.switch_to_iframe()
+                logger.warning(f"WebDriver has been restarted and there may be a connection problem.")
+            else:
+                self.close()
 
         return wrapper
 
@@ -164,13 +168,13 @@ class HamsterHelper(BaseHelper):
         )
         hamster_username = user_info_element.text
 
-        self.popup_window_button_large(massage=f"Успешный вход в Hamster Kombat {hamster_username}!")
+        self.popup_window_button_large(massage=f"Successful login to Hamster Kombat {hamster_username}!")
 
     @check_stop_event
     def popup_window_button_large(self, massage=None):
         """ Всплывающее окно. """
         try:
-            large_button = WebDriverWait(self.driver, self.timeout).until(
+            large_button = WebDriverWait(self.driver, self.timeout / 2).until(
                 EC.element_to_be_clickable(
                     (By.CLASS_NAME, 'bottom-sheet-button.button.button-primary.button-large'))
             )
@@ -187,7 +191,7 @@ class HamsterHelper(BaseHelper):
     def popup_window_button_close(self, massage=None):
         """ Закрытие всплывающего окна. """
         try:
-            close_button = WebDriverWait(self.driver, self.timeout).until(
+            close_button = WebDriverWait(self.driver, self.timeout / 2).until(
                 EC.element_to_be_clickable(
                     (By.CLASS_NAME, 'bottom-sheet-close'))
             )
@@ -241,8 +245,8 @@ class HamsterHelper(BaseHelper):
             )
             boosts.click()
 
-            self.popup_window_button_large(massage=f"Был использован бустер энергии.")
-            self.popup_window_button_close(massage=f"Не был использован бустер энергии.")
+            self.popup_window_button_large(massage=f"An energy booster was used.")
+            self.popup_window_button_close(massage=f"An energy booster wasn't used.")
 
         except (TimeoutException, StaleElementReferenceException,
                 ElementClickInterceptedException, ElementNotInteractableException):
@@ -270,7 +274,7 @@ class HamsterHelper(BaseHelper):
                         hamster_button.click()
                     time.sleep(random.randint(1, 10) / 100)
                 except ElementNotInteractableException:
-                    logger.warning(f"Не удалось нажать на хомяка.")
+                    logger.warning(f"Failed to click on the hamster button.")
                     continue
             else:
                 raise StopIteration
@@ -312,7 +316,7 @@ class HamsterHelper(BaseHelper):
                             self.scroll_page(self.driver)
                             item.click()
                     except ElementNotInteractableException:
-                        logger.warning(f"Задание не выполнено.")
+                        logger.warning(f"The daily task was failed.")
                         continue
 
                     self.popup_window_button_large()
@@ -369,21 +373,21 @@ class HamsterHelper(BaseHelper):
                     daily_cycle_time = time.time() + 2 * 60 * 60
                     if self.claim_daily_rewards:
                         self.claim_rewards()
-                        logger.info(f"Ежедневные награды были собраны.")
+                        logger.info(f"Daily rewards have been collected.")
 
                 current_energy_balance, max_energy_limit = self.get_energy()
-                logger.info(f"Текущий баланс энергии: {current_energy_balance}")
+                logger.info(f"Current energy balance: {current_energy_balance}")
 
                 if (max_energy_limit - current_energy_balance) < max_energy_limit * 0.25:
-                    logger.info(f"Добыча монет в Hamster Kombat запущена.")
+                    logger.info(f"Hamster Kombat coin mining has started.")
                     self.tap_tap()
-                    logger.info(f"Добыча монет Hamster Kombat завершёна.")
+                    logger.info(f"Hamster Kombat coin mining has stopped.")
                     if self.use_energy_boosts:
                         self.use_boosts()
 
                 else:
                     wait_time = (max_energy_limit - current_energy_balance) * (30 / 100)  # 100 за 30 сек
-                    logger.info(f"Ожидание заполнения энергии: {wait_time / 60} мин.")
+                    logger.info(f"Waiting for energy to fill: {wait_time / 60} min.")
                     end_time = time.time() + wait_time
                     while time.time() < end_time:
                         if not self.stop_event.is_set():
@@ -395,7 +399,7 @@ class HamsterHelper(BaseHelper):
                 break
 
             except Exception as e:
-                logger.error(f"Поймана неизвестная ошибка {e}")
+                logger.error(f"Unknown error: {e}", exc_info=True)
                 break
 
         self.close()

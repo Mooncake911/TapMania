@@ -44,10 +44,10 @@ class HamsterFarm:
 
             time.sleep(len(self.threads) * 1.5)
 
-            logger.info(f"Программа Hamster Kombat Farm запущена.")
+            logger.info(f"Hamster Kombat Farm program has launched.")
 
         except Exception as e:
-            logger.info(f"Поймана ошибка в hamster_farm.py: {e}")
+            logger.info(f"Caught a bug in hamster_farm.py: {e}")
             self.deactivate_farm()
 
     def deactivate_farm(self):
@@ -59,10 +59,10 @@ class HamsterFarm:
             for thread in self.threads:
                 thread.join(timeout=30)
 
-            logger.info(f"Программа Hamster Kombat Farm завершена.")
+            logger.info(f"Hamster Kombat Farm program has ended.")
 
         except Exception as e:
-            logger.info(f"Поймана ошибка в hamster_farm.py: {e}")
+            logger.info(f"Caught a bug in hamster_farm.py: {e}")
 
 
 if __name__ == '__main__':
